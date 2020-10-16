@@ -6,7 +6,7 @@ Created on 16.10.2020
 
 if __name__ == '__main__':
 
-    import GustelBOT
+    from GustelBOT import main
     import logging
     
     logging.basicConfig(level=logging.INFO)
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     logging.debug("__main__")
     
     #Starting program
-    GustelDDNS.main()
+    main()
 
     
     
