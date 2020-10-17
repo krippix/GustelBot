@@ -21,18 +21,21 @@ def checkDataFolder(folderlocation):
     return
 
 
-def checkini(inilocation):
+def checkini(configini):
     #Checks if .ini File exists
     
-    if Path(inilocation).exists():
-        print(inilocation)
-        logging.info("config.ini exists!")
+    
+    logging.info("Checking if: "+configini+" exists...")
+    
+    if Path(configini).exists():
+        
+        logging.info("config.ini found!")
     else:
         logging.warning("config.ini not found!")
         
         logging.info("Attempting to create config.ini")
         try:
-            open(inilocation, "x")
+            open(configini, "x")
             logging.info("config.ini created!")
         except Exception as e:
             logging.error("Failed to create config.ini: "+str(e))
@@ -40,14 +43,43 @@ def checkini(inilocation):
             exit()
         
         #Once the file is created, create default ini Structure
+   
         config = configparser.ConfigParser()
-        config.read(inilocation)
-        config['DEFAULT']['path'] = '/var/shared/'    # update
-        config['DEFAULT']['default_message'] = 'Hey! help me!!'   # create
-
-        with open('FILE.INI', 'w') as configfile:    # save
-            config.write(configfile)
+        
+        config.add_section("BOTCONFIG")
+        config.set("BOTCONFIG","prefix","&")
+        config.set("BOTCONFIG","language","en")
+        config.set("BOTCONFIG","soundfileFolder","")
+        config.add_section("DISCORD")
+        config.set("DISCORD","token","1234567890")
+        
+        cfgfile = open(configini,'w')
+        config.write(cfgfile)
         
         #TODO: Create config file with predefined settings
         
     return
+
+def readini(inifile, section, option):
+    #Returns chosen section and name
+    
+    parse = configparser.ConfigParser()
+    
+    logging.debug("Parsing Section: "+section+", name: "+option+" from: "+inifile)
+    
+    try:
+        parse.read(inifile)
+    except Exception as e:
+        logging.warning(str(e))
+    
+    try:
+        return parse.get(section, option)
+    except Exception as e:
+        logging.error(str(e))
+    
+
+    
+    
+    
+    
+    
