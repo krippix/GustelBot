@@ -8,8 +8,10 @@ if __name__ == '__main__':
 
     from GustelBOT import main
     import logging
+
     
     logging.basicConfig(level=logging.INFO)
+    
     
     logging.debug("__main__")
     #Starting program

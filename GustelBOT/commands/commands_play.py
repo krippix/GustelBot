@@ -5,7 +5,7 @@ import random
 
 
 
-def chooseRandomFile(basepath):
+def chooseRandomFile(basepath, *exclude):
     #Chooses Random File out of Folder and ALL SUBFOLDERS
     
     allFiles = []    
@@ -13,16 +13,18 @@ def chooseRandomFile(basepath):
     for root, subdirs, files in os.walk(basepath):
         
         #remove basepath from result
+        #TODO Doesent work on windows server WTF?
         root = root[len(basepath):]
-        
-        
         
         for x in files:
             
-            if root != "":
-                allFiles.append(root+os.sep+x)
-            else:
-                allFiles.append(x)
+            #Ignore Filetypes
+            if not x.lower().endswith(exclude):
+                if root != "":
+                    allFiles.append(str(root+os.sep+x))
+                
+                else:
+                    allFiles.append(x)
+                
         
-    
     return random.choice(allFiles)

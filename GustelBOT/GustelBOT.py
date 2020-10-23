@@ -93,7 +93,7 @@ def main():
     
     
     
-    @bot.command(pass_context=True,name="leave",description="BOT leaves channel.")
+    @bot.command(pass_context=True,name="disconnect",aliases=["leave","exit"],description="BOT leaves channel.")
     async def cmdLeave(ctx):
  
         await ctx.voice_client.disconnect()
@@ -101,7 +101,7 @@ def main():
     
     
     
-    @bot.command(pass_context=True, name="play", description="BOT plays sound")
+    @bot.command(pass_context=True, name="play",aliases=["paly"], description="BOT plays sound")
     async def cmdPlay(ctx, *args):
         
         #If neither bot nor author are in a channel
@@ -115,7 +115,7 @@ def main():
         
         #If bot is in the wrong channel, switch to author
         elif ctx.voice_client.channel != ctx.author.voice.channel:
-            await ctx.voice_client.stop()
+            ctx.voice_client.stop()
             await ctx.voice_client.disconnect()
             await ctx.author.voice.channel.connect()
         
@@ -123,14 +123,17 @@ def main():
         elif ctx.voice_client.channel == ctx.author.voice.channel:
             pass  
         
-        
         else:
+            #ToDo weg mit dem print?
             await ctx.send("Tja scheisse, ne!")
             print(ctx.voice_client, ctx.author.voice)
             return
+        
+        if ctx.voice_client.is_playing():
+            ctx.voice_client.stop()
             
         #after everything passes
-        randomfile = commands_play.chooseRandomFile(audiofiles)
+        randomfile = commands_play.chooseRandomFile(audiofiles,".jpg",".png",".gif")
         await ctx.send('Spiele "'+randomfile+'"')
         ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,randomfile)))
         
