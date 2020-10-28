@@ -1,5 +1,5 @@
 # GustelBOT
-GustelBot is for my private use. 
+discord.py experiments. 
 
 ## Commands
 
