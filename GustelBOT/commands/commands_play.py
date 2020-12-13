@@ -23,7 +23,9 @@ def searchFile(basepath,*args):
     for arg in args:
         fullString = fullString + arg
     
- 
+    #Makes Search all lowercase
+    fullString = fullString.lower()
+    
     
     fileRatio = []
     #Determines how close to the search the filenames are
@@ -50,6 +52,9 @@ def searchFile(basepath,*args):
         
         #Remove Spaces from String
         workingFile = fileNoExtension.replace(' ','')
+        
+        #search for it while all lowercase
+        workingFile = workingFile.lower()
         
         #Check Ration of file
         ratio = SequenceMatcher(None,workingFile,fullString).ratio()

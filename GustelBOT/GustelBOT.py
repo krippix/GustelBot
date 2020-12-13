@@ -57,6 +57,7 @@ def main():
     @bot.event
     async def on_ready():
         logging.info('Logged in as {0.user}'.format(bot))
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="Alexander Marcus"))
     
     
     
@@ -141,7 +142,7 @@ def main():
         else:
             #Choose file to play
             searchresult = commands_play.searchFile(audiofiles,*args)
-            await ctx.send(str("Spiele '"+searchresult[0])+"'\n Wahrscheinlichkeit: "+str(searchresult[1]*100)[:5]+"%")
+            await ctx.send(str('Spiele "'+searchresult[0])+'"\n Wahrscheinlichkeit: '+str(searchresult[1]*100)[:5]+'%')
             await ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,searchresult[0])))
         
     
