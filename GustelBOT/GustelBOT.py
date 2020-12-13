@@ -132,10 +132,17 @@ def main():
         if ctx.voice_client.is_playing():
             ctx.voice_client.stop()
             
-        #after everything passes
-        randomfile = commands_play.chooseRandomFile(audiofiles,".jpg",".png",".gif")
-        await ctx.send('Spiele "'+randomfile+'"')
-        ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,randomfile)))
+        #if no arguments were given, play Random soundfile
+        if (len(args) == 0):
+            randomfile = commands_play.chooseRandomFile(audiofiles)
+            await ctx.send('Spiele "'+randomfile+'"')
+            ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,randomfile)))
+        #Else search soundfiles for most fitting one
+        else:
+            #Choose file to play
+            searchresult = commands_play.searchFile(audiofiles,*args)
+            await ctx.send(str("Spiele '"+searchresult[0])+"'\n Wahrscheinlichkeit: "+str(searchresult[1]*100)[:5]+"%")
+            await ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,searchresult[0])))
         
     
     
