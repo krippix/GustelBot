@@ -26,6 +26,12 @@ def searchFile(basepath,*args):
     #Makes Search all lowercase
     fullString = fullString.lower()
     
+    #Removes spaces from filename and path
+    fullString = fullString.replace(' ','')
+        
+    #Removes \ form filepath
+    fullString = fullString.replace('\\','')
+    
     
     fileRatio = []
     #Determines how close to the search the filenames are
@@ -50,28 +56,81 @@ def searchFile(basepath,*args):
             #increment Current Char
             i = i + 1
         
-        #Remove Spaces from String
-        workingFile = fileNoExtension.replace(' ','')
+        #makes workingfile lowercase
+        workingFile = fileNoExtension.lower()
         
-        #search for it while all lowercase
-        workingFile = workingFile.lower()
+        #Removes spaces from filename and path
+        workingFile = workingFile.replace(' ','')
         
-        #Check Ration of file
-        ratio = SequenceMatcher(None,workingFile,fullString).ratio()
-        #print(file," -> ", ratio)
+        #Removes \ form filepath
+        workingFileWithFolder = workingFile.replace('\\','')
         
-        #Put Ratio with file into tuple (Actual Filename)
-        currentList = [ratio,file]
+
+        #print(workingFileWithFolder)
+        
+        #Check Ration of file WITH Foldername
+        
+        print("vergleiche: "+workingFileWithFolder+" mit: "+fullString)
+        ratio = SequenceMatcher(None,workingFileWithFolder,fullString).ratio()
+        
+        #Remove Folder from workingfile
+        i = 1
+        for char in workingFile:
+
+            currentChar = workingFile[len(workingFile)-i]
+            
+            #Only keep String until first "\" appears
+            if currentChar == '\\':
+                workingFile = workingFile[len(workingFile)-i+1:]
+                break
+
+            #increment Current Char
+            i = i + 1
+        
+        #print(workingFile)
+        
+        #Check ratio of file without Folder
+        ratioNoFolder = SequenceMatcher(None,workingFile,fullString).ratio()
+        
+        #Put Ratio with file into list (Actual Filename)
+        currentList = [ratio,ratioNoFolder,file]
         
         fileRatio.append(currentList)
     
     #Sort result by Ratio
-    fileRatio.sort()
-    print(fileRatio)
+    fileRatio.sort(reverse=True)
+    
+    
+    resultPlus55 = []
+    #Only include results with above 50%
+    for result in fileRatio:
+        if result[0] >= 0.55 or result[1] >= 0.55:
+            resultPlus55.append(result)
+            
+    
+    print(resultPlus55)
+    
+    #Calculates average of result with and without path
+    
     
     #return most likely result (Filename of highest ratio, ratio)
     #TODO: Make a more specific decision
-    return((fileRatio[len(fileRatio)-1][1],(fileRatio[len(fileRatio)-1][0])))
+    print(fileRatio)
+    
+    
+    if len(resultPlus55) == 0:
+        return None
+    
+    else:
+        #Check wich ratio was more likely
+        if resultPlus55[0][0] >= resultPlus55[0][1]:
+            finalRatio = resultPlus55[0][0]
+        else:
+            finalRatio = resultPlus55[0][1]
+       
+        
+        
+        return (resultPlus55[0][2],finalRatio)
     
 
 
@@ -100,3 +159,16 @@ def getAllFiles(basepath):
                         allFiles.append(file)
     
     return allFiles
+
+
+def tree(basepath):
+    
+    itemlist = getAllFiles(basepath)
+    
+    treestring = ""
+    
+    for x in itemlist:
+        treestring = treestring + str(x) + "\n"
+    
+    
+    return treestring

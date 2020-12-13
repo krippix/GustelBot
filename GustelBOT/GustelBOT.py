@@ -91,6 +91,10 @@ def main():
             #vc.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,"FreshD\\eyyyy.wav")))
             #while vc.is_playing():
                 
+    @bot.command(pass_context=True,name="tree",description="Lists all available soundfiles")
+    async def cmdJoin(ctx):
+        
+        await ctx.send(commands_play.tree(audiofiles))
     
     
     
@@ -142,8 +146,15 @@ def main():
         else:
             #Choose file to play
             searchresult = commands_play.searchFile(audiofiles,*args)
-            await ctx.send(str('Spiele "'+searchresult[0])+'"\n Wahrscheinlichkeit: '+str(searchresult[1]*100)[:5]+'%')
-            await ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,searchresult[0])))
+            
+            #If no result
+            if searchresult is None:
+                await ctx.send('Kein passendes Ergebnis gefunden. Mit "$tree" kannst du alle Sounds anzeigen lassen.')
+            
+                #Show Result and how sure BOT is that its a match
+            else:
+                await ctx.send('Spiele "'+str(searchresult[0])+'"\nWahrscheinlichkeit: '+str(searchresult[1]*100)[:5]+'%')
+                ctx.voice_client.play(discord.FFmpegPCMAudio(os.path.join(audiofiles,searchresult[0])))
         
     
     
