@@ -1,21 +1,24 @@
 from difflib import SequenceMatcher
 import os
 import random
+import config
 
 
 
 
 
-def chooseRandomFile(basepath):
+def chooseRandomFile():
     #chooses random File from basepath
 
     
-    return random.choice(getAllFiles(basepath))
+    return random.choice(getAllFiles())
 
-def searchFile(basepath,*args):
+def searchFile(*args):
     #Searches files for closest match of parameters
     
-    allFiles = getAllFiles(basepath)
+    allFiles = getAllFiles()
+    
+    print(allFiles)
     
     fullString = ""
     
@@ -134,17 +137,17 @@ def searchFile(basepath,*args):
     
 
 
-def getAllFiles(basepath):
+def getAllFiles():
     
     includedFileTypes = [".wv",".wma",".webm",".wav",".vox",".voc",".tta",".sln",".rf64",".raw",".ra",".rm",".opus",".ogg",".oga",".mogg",".nmf",".msv",".mpc",".mp3",".mmf",".m4p",".m4b",".m4a",".ivs",".iklax",".gsm",".flac",".dvf",".dss",".dct",".cda",".awb",".au",".ape",".amr",".alac",".aiff",".act",".aax",".aac",".aa",".8svx",".3gp"]
     
     allFiles = []
     
     #Search Basedirectory For all files in folders and Subfolders
-    for root, subdirs, files in os.walk(basepath):
+    for root, subdirs, files in os.walk(config.soundFolder()):
         
-        #remove basepath from result
-        root = root[len(basepath):]
+
+        relative_path = os.path.relpath(root, config.soundFolder())
         
         #Search result list
         for file in files:
@@ -153,7 +156,7 @@ def getAllFiles(basepath):
             for filetype in includedFileTypes:
                 if file.lower().endswith(filetype):
                     if root != "":
-                        allFiles.append(str(root+os.sep+file))
+                        allFiles.append(str(relative_path+os.sep+file))
                 
                     else:
                         allFiles.append(file)
@@ -161,14 +164,17 @@ def getAllFiles(basepath):
     return allFiles
 
 
-def tree(basepath):
+def tree():
     
-    itemlist = getAllFiles(basepath)
+    itemlist = getAllFiles()
     
     treestring = ""
     
     for x in itemlist:
         treestring = treestring + str(x) + "\n"
+    
+    if treestring == "":
+        return "Konnte keine Audiodateien finden."
     
     
     return treestring
