@@ -10,6 +10,7 @@ RUN pip install discord.py
 RUN pip install praw
 RUN pip install PyNaCl
 RUN pip install google-api-python-client
+RUN pip install google-auth-oauthlib
 
 #WORKDIR /GustelBOT/
 
