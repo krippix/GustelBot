@@ -13,4 +13,4 @@ stop        | Stops current playback
 ## Configuration
 - Save YouTube OAuth Token in /data/youtube/ as client_secret.json
 
-## ToDO
+## ToDo
