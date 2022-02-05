@@ -14,4 +14,3 @@ stop        | Stops current playback
 - Save YouTube OAuth Token in /data/youtube/ as client_secret.json
 
 ## ToDO
-- Support for Authenticated shares
