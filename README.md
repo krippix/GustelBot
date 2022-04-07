@@ -14,3 +14,23 @@ stop        | Stops current playback
 - Save YouTube OAuth Token in /data/youtube/ as client_secret.json
 
 ## ToDo
+
+  
+## Installation Stuff
+  
+  ```
+  docker build . -t krippix/gustelbot
+  ```
+  
+```
+version: "3"
+
+# https://github.com/krippix/GustelBOT
+services:
+  gustelbot:
+    container_name: gustelbot
+    image: krippix/gustelbot
+    volumes:
+      - '/localPath/data/:/GustelBOT/data/'
+    restart: unless-stopped
+```
