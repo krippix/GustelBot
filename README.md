@@ -16,7 +16,7 @@ stop        | Stops current playback
 ## ToDo
 
   
-## Installation Stuff
+## Docker Installation
   
   ```
   docker build . -t krippix/gustelbot
