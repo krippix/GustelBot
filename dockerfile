@@ -1,20 +1,10 @@
-FROM ubuntu
+FROM python:3
 
-RUN mkdir /GustelBOT/
+WORKDIR /GustelBOT/
 
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install ffmpeg -y
-RUN apt-get install python3 -y
-RUN apt-get install python3-pip -y
-RUN pip install discord.py
-RUN pip install praw
-RUN pip install PyNaCl
-RUN pip install google-api-python-client
-RUN pip install google-auth-oauthlib
+COPY ./bot ./
+COPY ./requirements.txt ./
 
-#WORKDIR /GustelBOT/
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD [ "python3", "/GustelBOT/GustelBOT/GustelBOT.py" ]
-#ENTRYPOINT ["tail", "-f", "/dev/null"]
-
-COPY ./GustelBOT/ /GustelBOT/
+CMD [ "python", "/bot/GustelBot.py"]

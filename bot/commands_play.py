@@ -4,9 +4,6 @@ import random
 import config
 
 
-
-
-
 def chooseRandomFile():
     #chooses random File from basepath
 

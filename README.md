@@ -1,5 +1,16 @@
-# GustelBOT
-discord.py experiments. 
+# GustelBot
+My private Discord bot for experimenting.
+
+## Ideas/ToDo
+- (sounds) Display files as interactive embed in case more than 2000 characters are needet.
+- 
+
+## Administration
+The admin commands of the bot can be used if the user fulfills one (or more) of the following conditions:
+- role called "bot-admin"
+- server administrator
+- "manage channels" permission
+
 
 ## Commands
 
@@ -9,19 +20,15 @@ join        | joins users current channel
 disconnect  | leaves current channel
 play <name> | Searches for, and plays file with matching name. No parameter for random file.
 stop        | Stops current playback
-
-## Configuration
-- Save YouTube OAuth Token in /data/youtube/ as client_secret.json
-
-## ToDo
-
   
 ## Docker Installation
   
-  ```
-  docker build . -t krippix/gustelbot
-  ```
+### Build
+```
+docker build . -t krippix/gustelbot
+```
   
+### docker-compose example
 ```
 version: "3"
 
@@ -31,6 +38,6 @@ services:
     container_name: gustelbot
     image: krippix/gustelbot
     volumes:
-      - '/localPath/data/:/GustelBOT/data/'
+      - '/<localPath>/data/:/GustelBOT/data/'
     restart: unless-stopped
 ```
