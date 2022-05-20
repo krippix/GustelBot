@@ -9,6 +9,8 @@ def get_files_rec(folder: pathlib.Path) -> list:
         for file in triple[2]:
             foundFiles.append((triple[0], file))
 
+    foundFiles.sort()
+
     return foundFiles
 
 

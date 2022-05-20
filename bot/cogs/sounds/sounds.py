@@ -7,12 +7,13 @@ from util import config, filemgr, voice
 class Sounds(commands.Cog):
     SOUND_FOLDER: pathlib.Path
     
-    def __init__(self, bot):
+    def __init__(self, bot, settings: config.Config):
         logging.debug("<init> - sounds")
 
         self.bot = bot
-        self.SOUND_FOLDER = os.path.join(config.Config().DATA_FOLDER, "sounds")
-        config.Config().ensureFolder(self.SOUND_FOLDER)
+        self.SOUND_FOLDER = os.path.join(settings.DATA_FOLDER, "sounds")
+        self.settings = settings
+        self.settings.ensureFolder(self.SOUND_FOLDER)
 
 
     @commands.command(name="play", help="Play one of the bot's sound files.")

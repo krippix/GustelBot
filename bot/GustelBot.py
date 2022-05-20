@@ -4,12 +4,15 @@ import discord
 from discord.ext import commands
 from util import config
 
+# Manually imported cogs
+from cogs.admin import admin
+from cogs.sounds import sounds
+
 # Set loglevel, ignoring config until config file works
 logging.basicConfig(encoding='utf-8', level=10)
 
 # Check config file for errors and correct them
 settings = config.Config()
-print(settings.PROJECT_ROOT)
 # overwrite loglevel
 logging.basicConfig(level=settings.get_loglevel(), force=True)
 
@@ -30,15 +33,30 @@ async def on_ready():
     # await bot.change_presence(activity=discord.Game(name="["+settings.get_bot_prefix()+"]"))
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="Alexander Marcus"))
 
-    # Load Modules from the cogs folder
     logging.info("Loading Modules.")
+
+    # Manually load first cogs
+    # list of manual cog objects that take settings as additional parameter
+    manual_cogs = [admin.Admin, sounds.Sounds]
+
+    for cog in manual_cogs:
+        try:
+            bot.add_cog(cog(bot, settings))
+            logging.info("Loaded Module admin.")
+        except Exception as e:
+            logging.error(f"Failed to load admin extension: e")
+
+    # Load left-over Modules from the cogs folder
     for cog in os.listdir(os.path.join(settings.PROJECT_ROOT, "bot", "cogs")):
         if cog == "__pycache__":
             continue
         try:
             bot.load_extension(f"cogs.{cog}")
             logging.info(f"Loaded Module {cog}")
+        except discord.ext.commands.errors.NoEntryPointError:
+            pass
         except Exception as e:
+            print(type(e))
             logging.error(f"Failed to load module {cog}: {e} Continuing")
     logging.info("Finished loading Modules.")
 

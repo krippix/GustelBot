@@ -5,8 +5,9 @@ from util import config
 
 class Admin(commands.Cog):
     
-    def __init__(self, bot):
+    def __init__(self, bot, settings: config.Config):
         self.bot = bot
+        self.settings = settings
 
     @commands.command(name="prefix", help="Change Bot Prefix.")
     async def ping(self, ctx: commands.context, *args):
@@ -15,13 +16,13 @@ class Admin(commands.Cog):
         if (not check_permissions(ctx.message.author)):
             await ctx.send("```You are not allowed to use this command. You have to fulfill one of the following conditions: \n-administrator \n-manage channels permission \n-moderate members permission \n-role called \"bot-admin\"```")
             return
-        
+
         if len(args) < 1:
             await ctx.send("Missing argument")
             return
 
         try:
-            config.set_config("CLIENT","prefix",args[0])
+            self.settings.set_config("CLIENT","prefix",args[0])
         except Exception as e:
             await ctx.send("Failed to write new prefix to config!")
 
@@ -31,7 +32,7 @@ class Admin(commands.Cog):
         except Exception as e:
             await ctx.send("Failed to set new prefix")
 
-        await self.bot.change_presence(activity=discord.Game(name="["+config.get_bot_prefix()+"]"))
+        await self.bot.change_presence(activity=discord.Game(name="["+self.settings.get_bot_prefix()+"]"))
 
 """  
     @commands.command(name="reload", help="Restarts the bot")
