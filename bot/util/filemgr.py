@@ -2,18 +2,18 @@ import logging, os, pathlib, random
 from util import config
 
 def get_files_rec(folder: pathlib.Path) -> list:
-    # Returns list of tuples, format: (path, filename)
+    '''Returns list of tuples, format: (path, filename)'''
     foundFiles = []
     
-    for triples in os.walk(folder):
-        for file in triples[2]:
-            foundFiles.append(({triples[0]}, file))
+    for triple in os.walk(folder):        
+        for file in triple[2]:
+            foundFiles.append((triple[0], file))
 
     return foundFiles
 
 
 def get_random_file(folder: pathlib.Path) -> pathlib.Path:
-    # returns random file from folder
+    '''returns random file from folder'''
     
     files = get_files_rec(folder)
 
