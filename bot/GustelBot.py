@@ -28,7 +28,7 @@ async def on_ready():
     
     logging.info("Setting prefix as status")
     # await bot.change_presence(activity=discord.Game(name="["+settings.get_bot_prefix()+"]"))
-    await bot.change_presence(activity=discord.ActivityType.listening, name="Alexander Marcus")
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="Alexander Marcus"))
 
     # Load Modules from the cogs folder
     logging.info("Loading Modules.")
