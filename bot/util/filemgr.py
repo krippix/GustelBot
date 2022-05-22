@@ -15,7 +15,7 @@ def get_files_rec(folder: pathlib.Path) -> list:
 
 
 def get_random_file(folder: pathlib.Path) -> pathlib.Path:
-    '''returns random file from folder'''
+    '''Returns random file from folder'''
     
     files = get_files_rec(folder)
 

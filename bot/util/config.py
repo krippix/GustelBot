@@ -3,13 +3,12 @@ import os
 import configparser
 import pathlib
 
-"""
-This will handle configuration in this project.
-config.ini is supposed to be generated and repaired in this class in case anything is missing.
-Please use get_config() if you only need the string in the ini
-"""
-
 class Config:
+    '''
+    This will handle configuration in this project.
+    config.ini is supposed to be generated and repaired in this class in case anything is missing.
+    Please use get_config() if you only need the string in the ini
+    '''
     # required folders should be written here in order to automatically create them
     PROJECT_ROOT: pathlib.Path
     DATA_FOLDER: pathlib.Path
@@ -29,7 +28,7 @@ class Config:
     
 
     def generateConfig(self):
-        # Generates entire configuration anew, this will CLEAR any previous configuration
+        '''Generates entire configuration anew, this will CLEAR any previous configuration'''
         self.config = self.get_default_config()
 
         self.writeConfig()
@@ -40,7 +39,7 @@ class Config:
 
 
     def checkConfig(self):
-        # Check if config.ini is present, and whether it's incomplete
+        '''Check if config.ini is present, and whether it's incomplete'''
 
         # Check if 'config.ini' is present
         if not os.path.exists(self.INI_FILE):
@@ -75,7 +74,7 @@ class Config:
 
 
     def writeConfig(self):
-        # Write config to file
+        '''Write config to file'''
         try:
             with open(self.INI_FILE, 'w') as configfile:
                 self.config.write(configfile)
@@ -85,7 +84,7 @@ class Config:
 
     @staticmethod
     def ensureFolder(folder_path: pathlib.Path):
-        # takes path, and creates missing folders in that path if they don't exist
+        '''takes path, and creates missing folders in that path if they don't exist'''
         
         if not os.path.exists(folder_path):
             try:
@@ -98,6 +97,7 @@ class Config:
     #
 
     def get_default_config(self):
+        '''Returns previously defined default config'''
         # This is where you can define what the config.ini is supposed to look like
         # DO NOT SET ANY API KEYS OR PASSWORDS AS DEFAULT
         defaultconfig = configparser.ConfigParser()
@@ -118,7 +118,7 @@ class Config:
 
 
     def get_config(self, category, key):
-        # Calling just the string within the .ini without any checks
+        '''Calling just the string within the .ini without any checks'''
         
         try:
             return self.config[category][key]
@@ -138,8 +138,8 @@ class Config:
         pass
 
 
-    def get_loglevel(self) -> str:
-        # Returns loglevel object for configuration
+    def get_loglevel(self) -> int:
+        '''Returns integer value of string in the config. Defaults to info'''
         loglevel_input = self.get_config("SCRIPT","loglevel").lower()
 
         loglevels = {"debug": 10, "info": 20, "warning": 30, "error": 40, "critical": 50}
@@ -148,11 +148,11 @@ class Config:
             return loglevels[loglevel_input]
         
         logging.error("Failed to determine loglevel, defaulting to debug.")
-        return 10
+        return 20
 
 
     def get_bot_prefix(self):
-        # try to get prefix from config.ini - set to '!' if it fails
+        '''Attempts to get bot prefix from config.ini. Defaults to "!".'''
         prefix = self.get_config("CLIENT","prefix")
 
         if prefix == "":
@@ -166,6 +166,6 @@ class Config:
     #
 
     def set_config(self, category, key, value):
-        # change config option
+        ''''Sets config option.'''
         self.config[category][key] = value
         self.writeConfig()

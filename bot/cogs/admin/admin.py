@@ -14,7 +14,7 @@ class Admin(commands.Cog):
         #print(ctx.message.author.guild_permissions.administrator)
         
         if (not check_permissions(ctx.message.author)):
-            await ctx.send("```You are not allowed to use this command. You have to fulfill one of the following conditions: \n-administrator \n-manage channels permission \n-moderate members permission \n-role called \"bot-admin\"```")
+            await ctx.send("You do not fulfill the required permissions to use this command.")
             return
 
         if len(args) < 1:
@@ -54,7 +54,7 @@ def check_permissions(author):
     
     for role in author.roles:
         if str(role).lower() == "bot-admin": 
-            logging.debug("user is member of 'bot-admin'")
+            logging.debug("User is member of 'bot-admin'")
             return True
      
     if author.guild_permissions.administrator:

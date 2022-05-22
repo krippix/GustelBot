@@ -15,7 +15,7 @@ async def is_joinable(ctx: commands.context, channel: discord.VoiceChannel) -> b
 
 
 async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
-    '''join channel, this doesen't check if its possible!'''
+    '''Joins channel, this doesen't check if its possible!'''
 
     # if bot is already in a channel, disconnect
     if ctx.voice_client is not None:
@@ -32,7 +32,7 @@ async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
 
 
 async def play_sound(ctx: commands.context, sound):
-    '''Play sound in current channel'''
+    '''Plays sound in current channel'''
     
     if ctx.voice_client.is_playing():
         ctx.voice_client.stop()

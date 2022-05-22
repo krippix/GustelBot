@@ -33,7 +33,7 @@ class Sounds(commands.Cog):
                 await ctx.send("No sounds available.")
                 return
 
-            await ctx.send(f"playing '{pathlib.Path(sound[1]).with_suffix('')}'")
+            await ctx.send(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
             await voice.join_channel(ctx, ctx.author.voice.channel)
             await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
             return
@@ -51,7 +51,7 @@ class Sounds(commands.Cog):
         #print(f"{sound[0]}{sound[1]}")
 
         await voice.join_channel(ctx, ctx.author.voice.channel)
-        await ctx.send(f"playing '{pathlib.Path(sound[1]).with_suffix('')}'")
+        await ctx.send(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
         await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
 
 
@@ -84,7 +84,7 @@ class Sounds(commands.Cog):
         await ctx.voice_client.disconnect()
 
 
-    @commands.command(name="soundlist", help="List available sounds.")
+    @commands.command(name="soundlist", aliases=["tree"], help="List available sounds.")
     async def soundlist(self, ctx: commands.context):
         # posts list of files in /sounds folder, without folder or extension.
         logging.debug("<command> - soundlist")
