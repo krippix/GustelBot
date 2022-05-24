@@ -37,7 +37,7 @@ class Admin(commands.Cog):
 """  
     @commands.command(name="reload", help="Restarts the bot")
     async def ping(self, ctx: commands.context, *args):
-        if not ctx.message.author.id == 280098940156772352:
+        if not ctx.message.author.id == bot.owner_id:
             await ctx.send("This command can currently only be used by the bot author")
             return
 

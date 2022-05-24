@@ -3,7 +3,7 @@ My private Discord bot for experimenting.
 
 ## Ideas/ToDo
 - (sounds) Display files as interactive embed in case more than 2000 characters are needet.
-- 
+- React to said words (Is that even possible with pycord?)
 
 ## Administration
 The admin commands of the bot can be used if the user fulfills one (or more) of the following conditions:

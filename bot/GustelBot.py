@@ -21,6 +21,7 @@ intents = discord.Intents.default()
 intents.members = True
 intents.messages = True
 intents.reactions = True
+intents.voice_states = True
 
 # Create bot object
 bot = commands.Bot(command_prefix=settings.get_bot_prefix(), case_insensitive=True, intents=intents)
