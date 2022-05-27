@@ -94,7 +94,13 @@ class Sounds(commands.Cog):
             await ctx.respond("No sounds found.")
             return
 
-        await ctx.respond(f"**The following songs are available:**\n{reply_str}")
+        testembed = discord.Embed(
+            colour=discord.Embed.Empty
+        )
+
+        await ctx.respond(testembed)
+        
+        #await ctx.respond(f"**The following songs are available:**\n{reply_str}")
 
 
     def choose_sound(self, name: str = "") -> tuple:
