@@ -10,6 +10,8 @@ The admin commands of the bot can be used if the user fulfills one (or more) of 
 - role called "bot-admin"
 - server administrator
 - "manage channels" permission
+- different voice files per server but try to prevent duplicates
+- dynamic module loading
 
 
 ## Commands
