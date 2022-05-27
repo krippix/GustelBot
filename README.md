@@ -1,11 +1,13 @@
 # GustelBot
-My private Discord bot for experimenting.
+My custom Discord Bot for experimenting.
 
-## Ideas/ToDo
-- (sounds) Display files as interactive embed in case more than 2000 characters are needed.
-- React to said words (Is that even possible with pycord?)
 
-## Administration
+## Ideas/TODO
+- Make the soundlist embed interactive.
+- Try parsing said words in voice channels.
+- 
+
+## Administration (currently not in use)
 The admin commands of the bot can be used if the user fulfills one (or more) of the following conditions:
 - role called "bot-admin"
 - server administrator
@@ -18,10 +20,11 @@ The admin commands of the bot can be used if the user fulfills one (or more) of 
 
 command     | description
 ----------- | :-------------
-join        | joins users current channel
-disconnect  | leaves current channel
-play <name> | Searches for, and plays file with matching name. No parameter for random file.
-stop        | Stops current playback
+disconnect  | Bot leaves its channel
+play <name> | Searches for soundfile and plays it in user's channel. (Random file if no selection is made)
+stop        | Stops playback of current file
+soundlist   | Lists available sound files
+ping        | Replies with current ping
   
 ## Docker Installation
   
