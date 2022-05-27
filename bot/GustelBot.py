@@ -38,10 +38,10 @@ def load_extensions(bot):
     logging.info("Loading Extensions.")
 
     # Manually imported cogs. To pass more variables.
-    from cogs.admin import admin
+    #from cogs.admin import admin
     from cogs.sounds import sounds
     manual_cogs = {
-        'admin': admin.Admin,
+        #'admin': admin.Admin,
         'sounds': sounds.Sounds
     }
 

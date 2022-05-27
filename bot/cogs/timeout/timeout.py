@@ -32,7 +32,7 @@ class Timeout(commands.Cog):
             while (self.bot.user in after.channel.members):
                 await asyncio.sleep(1)
                 dc_timer += 1
-                logging.info(f"Disconnect timer for {after.channel}, {max_time - dc_timer}s left.")
+                logging.debug(f"Disconnect timer for {after.channel}, {max_time - dc_timer}s left.")
 
                 if voiceClient.is_playing():
                     dc_timer = 0

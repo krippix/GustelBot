@@ -16,8 +16,8 @@ class Sounds(commands.Cog):
         self.settings.ensureFolder(self.SOUND_FOLDER)
 
 
-    @commands.command(name="play", help="Play one of the bot's sound files.")
-    async def play(self, ctx: commands.context, *args):
+    @discord.slash_command(name="play", description="Plays sound in your current channel.")
+    async def play(self, ctx: discord.ApplicationContext, sound_name: discord.Option(str, "Name of the soundfile you want to play. Leave empty for random sound.", default="", name="sound")):
         logging.debug("<command> - play")
         
         # Check if channel is joinable at all
@@ -25,67 +25,63 @@ class Sounds(commands.Cog):
             if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
                 return
         
+        if ctx.author.voice is None:
+            await ctx.respond("Join a channel to use this command.")
+            return
+
         # in case any arguments have been provided
-        if args:
-            sound = self.choose_sound(' '.join(args))
+        if not sound_name == "":
+            sound = self.choose_sound(sound_name)
 
             if sound is None:
-                await ctx.send("No sounds available.")
+                await ctx.respond("No sounds available.")
                 return
 
-            await ctx.send(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
-            await voice.join_channel(ctx, ctx.author.voice.channel)
-            await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
+            await self.play_sound(ctx, sound)
             return
         
-        if ctx.author.voice is None:
-            await ctx.send("Join a channel to use this command.")
-            return
-        
+        # No arguments provided
         sound = self.choose_sound()
 
         if sound is None:
-            await ctx.send("No matching sound found.")
+            await ctx.respond("No matching sound found.")
             return
 
-        #print(f"{sound[0]}{sound[1]}")
-
-        await voice.join_channel(ctx, ctx.author.voice.channel)
-        await ctx.send(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
-        await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
+        await self.play_sound(ctx, sound)
+        return
 
 
-    @commands.command(name="stop", help="Stops playback")
-    async def stop(self, ctx: commands.context, *args):
+    @discord.slash_command(name="stop", description="Stops playback")
+    async def stop(self, ctx: discord.ApplicationContext):
         
         if ctx.voice_client is None:
-            await ctx.send("I am not connected to any channel.")
+            await ctx.respond("I am not connected to any channel.")
             return
 
         if not ctx.voice_client.is_playing():
-            await ctx.send("There is nothing to stop")
+            await ctx.respond("There is nothing to stop")
             return
 
         ctx.voice_client.stop()
 
 
 
-    @commands.command(name="disconnect", aliases=["dc","leave"], help="Disconnects bot from channel.")
-    async def disconnect(self, ctx: commands.context):        
+    @discord.slash_command(name="disconnect", description="Disconnects bot from channel.")
+    async def disconnect(self, ctx: discord.ApplicationContext):
         # Disconnect bot from current channel
         logging.debug("<command> - disconnect")
         
         # This is kinda weird: ctx.voic_client is an object with type: voice_client.VoiceClient
         if ctx.voice_client is None:
-            await ctx.send("I am not connected to any channel.")
+            await ctx.respond("I am not connected to any channel.")
             return
         
         ctx.voice_client.stop()
         await ctx.voice_client.disconnect()
 
 
-    @commands.command(name="soundlist", aliases=["tree"], help="List available sounds.")
-    async def soundlist(self, ctx: commands.context):
+    @discord.slash_command(name="soundlist", description="List available sounds.")
+    async def soundlist(self, ctx: discord.ApplicationContext):
         # posts list of files in /sounds folder, without folder or extension.
         logging.debug("<command> - soundlist")
         
@@ -95,10 +91,10 @@ class Sounds(commands.Cog):
             reply_str += f"{pathlib.Path(file[1]).with_suffix('')}\n"
 
         if len(reply_str) == 0:
-            await ctx.send("No sounds found :sadge:")
+            await ctx.respond("No sounds found.")
             return
 
-        await ctx.send(f"**The following songs are available:**\n{reply_str}")
+        await ctx.respond(f"**The following songs are available:**\n{reply_str}")
 
 
     def choose_sound(self, name: str = "") -> tuple:
@@ -144,3 +140,11 @@ class Sounds(commands.Cog):
                 break
         
         return random.choice(lastRoll)[0]
+
+
+    async def play_sound(self, ctx, sound):
+        '''Actually playing the sound. This expects the provided file to work!'''
+        
+        await ctx.respond(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
+        await voice.join_channel(ctx, ctx.author.voice.channel)
+        await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
