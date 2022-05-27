@@ -65,7 +65,6 @@ class Sounds(commands.Cog):
         ctx.voice_client.stop()
 
 
-
     @discord.slash_command(name="disconnect", description="Disconnects bot from channel.")
     async def disconnect(self, ctx: discord.ApplicationContext):
         # Disconnect bot from current channel
@@ -85,27 +84,47 @@ class Sounds(commands.Cog):
         # posts list of files in /sounds folder, without folder or extension.
         logging.debug("<command> - soundlist")
         
-        reply_str = ""
-        found_files = {"bort","bdfasd","sdfjasoifj","234879324","eifosafe"}
+        # TODO only look for actual soundfiles
+        found_files = filemgr.get_file_names(self.SOUND_FOLDER)
 
-        for file in filemgr.get_files_rec(self.SOUND_FOLDER):
-            reply_str += f"{pathlib.Path(file[1]).with_suffix('')}\n"
-            #found_files.append(f"{pathlib.Path(file[1]).with_suffix('')}\n")
-
-        if len(reply_str) == 0:
+        if not found_files:
             await ctx.respond("No sounds found.")
             return
 
-        testembed = discord.Embed(
-            description="Sounds currently Available:"
+        # Build results into embed
+        fields = [[]]
+        field_size = 0
+        current_field = 0
+        
+        for file in found_files:
+            if field_size + len(file) < 900:
+                fields[current_field].append(file)
+                field_size += len(file)
+            else:
+                fields.append([])
+                current_field += 1
+                fields[current_field].append(file)
+                field_size = len(file)
+        
+        # TODO make interaction with embed possible, e.g multiple pages.
+        embed = discord.Embed(
+            description="**The following sounds are currently available:**"
         )
 
-        testembed.add_field(name="", value=found_files)
-        testembed.add_field(name="chinchin", value="Was weiß ich denn.mp3 \nDrecksackblase", inline=True)
-        testembed.set_footer(text="Page 1/1")
+        # Add each field to the embed
+        i = 0
+        for field in fields:
+            if i < 2:
+                embed.add_field(name="Sound", value='\n'.join(field), inline=True)
+
+            i += 1
+
+        #embed.add_field(name=" ", value=found_files, inline=True)
+        #embed.add_field(name="chinchin", value="Was weiß ich denn.mp3 \nDrecksackblase", inline=True)
+        embed.set_footer(text="Page 1/1")
 
 
-        await ctx.respond(embed=testembed)
+        await ctx.respond(embed=embed)
         
         #await ctx.respond(f"**The following songs are available:**\n{reply_str}")
 

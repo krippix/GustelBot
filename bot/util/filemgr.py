@@ -14,6 +14,18 @@ def get_files_rec(folder: pathlib.Path) -> list:
     return foundFiles
 
 
+def get_file_names(folder: pathlib.Path) -> list:
+    '''Returns list of filenames. WITHOUT path information'''
+    found_files = get_files_rec(folder)
+    file_names = []
+
+    for file in found_files:
+        file_names.append(f"{pathlib.Path(file[1]).with_suffix('')}")
+    
+    file_names.sort()
+    return file_names
+
+
 def get_random_file(folder: pathlib.Path) -> pathlib.Path:
     '''Returns random file from folder'''
     
