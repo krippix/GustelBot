@@ -2,7 +2,7 @@
 My private Discord bot for experimenting.
 
 ## Ideas/ToDo
-- (sounds) Display files as interactive embed in case more than 2000 characters are needet.
+- (sounds) Display files as interactive embed in case more than 2000 characters are needed.
 - React to said words (Is that even possible with pycord?)
 
 ## Administration
