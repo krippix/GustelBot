@@ -86,19 +86,26 @@ class Sounds(commands.Cog):
         logging.debug("<command> - soundlist")
         
         reply_str = ""
+        found_files = {"bort","bdfasd","sdfjasoifj","234879324","eifosafe"}
 
         for file in filemgr.get_files_rec(self.SOUND_FOLDER):
             reply_str += f"{pathlib.Path(file[1]).with_suffix('')}\n"
+            #found_files.append(f"{pathlib.Path(file[1]).with_suffix('')}\n")
 
         if len(reply_str) == 0:
             await ctx.respond("No sounds found.")
             return
 
         testembed = discord.Embed(
-            colour=discord.Embed.Empty
+            description="Sounds currently Available:"
         )
 
-        await ctx.respond(testembed)
+        testembed.add_field(name="", value=found_files)
+        testembed.add_field(name="chinchin", value="Was weiß ich denn.mp3 \nDrecksackblase", inline=True)
+        testembed.set_footer(text="Page 1/1")
+
+
+        await ctx.respond(embed=testembed)
         
         #await ctx.respond(f"**The following songs are available:**\n{reply_str}")
 
