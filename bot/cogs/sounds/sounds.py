@@ -76,6 +76,7 @@ class Sounds(commands.Cog):
             return
         
         ctx.voice_client.stop()
+        await ctx.respond("Disconnecting...")
         await ctx.voice_client.disconnect()
 
 

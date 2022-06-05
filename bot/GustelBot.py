@@ -21,7 +21,7 @@ intents.reactions = True
 intents.voice_states = True
 
 # Create bot object
-bot = commands.Bot(command_prefix=settings.get_bot_prefix(), case_insensitive=True, intents=intents, debug_guilds=[280108601077661697])
+bot = commands.Bot(command_prefix=settings.get_bot_prefix(), case_insensitive=True, intents=intents, debug_guilds=[280108601077661697,980086518074982471])
 
 
 @bot.event
@@ -40,13 +40,16 @@ def load_extensions(bot):
     # Manually imported cogs. To pass more variables.
     #from cogs.admin import admin
     from cogs.sounds import sounds
+    from cogs.magischeMiesmuschel import magischeMiesmuschel
     manual_cogs = {
         #'admin': admin.Admin,
-        'sounds': sounds.Sounds
+        'sounds': sounds.Sounds,
+        'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel
     }
-
+    
     for cog in manual_cogs:
         try:
+            logging.debug(f"Attempting to import {cog}")
             bot.add_cog(manual_cogs[cog](bot, settings))
             logging.info(f"Loaded Module {cog}.")
         except Exception as e:
