@@ -107,7 +107,8 @@ class Config:
         }
 
         defaultconfig['CLIENT'] = {
-            "prefix" : "!"
+            "prefix" : "!",
+            "debug_guild" : ""
         }
 
         defaultconfig['SCRIPT'] = {

@@ -15,13 +15,9 @@ logging.basicConfig(level=settings.get_loglevel(), force=True)
 
 # specify intents (permission stuff)
 intents = discord.Intents.default()
-intents.members = True
-intents.messages = True
-intents.reactions = True
-intents.voice_states = True
 
 # Create bot object
-bot = commands.Bot(command_prefix=settings.get_bot_prefix(), case_insensitive=True, intents=intents, debug_guilds=[280108601077661697,980086518074982471])
+bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=[980086518074982471])
 
 
 @bot.event

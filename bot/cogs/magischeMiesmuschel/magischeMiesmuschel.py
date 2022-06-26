@@ -28,7 +28,7 @@ class MagischeMiesmuschel(commands.Cog):
         self.settings.ensureFolder(self.SOUND_FOLDER)
 
 
-    @discord.slash_command(name="mmuschel", description="Magische Miesmuschel.")
+    @discord.slash_command(name="muschel", description="Magische Miesmuschel.")
     async def play(self, ctx: discord.ApplicationContext):
         logging.debug("<MagischeMiesmuschel>")
         

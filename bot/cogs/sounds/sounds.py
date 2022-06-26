@@ -63,6 +63,7 @@ class Sounds(commands.Cog):
             return
 
         ctx.voice_client.stop()
+        await ctx.respond("⏹️ Playback stopped!")
 
 
     @discord.slash_command(name="disconnect", description="Disconnects bot from channel.")
