@@ -1,7 +1,12 @@
 # data files
 *.json
+!data/
+
 data/*
-!data/sounds/default/*
+!data/sounds
+
+data/sounds/*
+!data/sounds/default/
 
 # Configuration
 config.ini
