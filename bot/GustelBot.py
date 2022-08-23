@@ -34,11 +34,9 @@ def load_extensions(bot):
     logging.info("Loading Extensions.")
 
     # Manually imported cogs. To pass more variables.
-    #from cogs.admin import admin
     from cogs.sounds import sounds
     from cogs.magischeMiesmuschel import magischeMiesmuschel
     manual_cogs = {
-        #'admin': admin.Admin,
         'sounds': sounds.Sounds,
         'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel
     }
@@ -49,11 +47,11 @@ def load_extensions(bot):
             bot.add_cog(manual_cogs[cog](bot, settings))
             logging.info(f"Loaded Module {cog}.")
         except Exception as e:
-            logging.error(f"Failed to load admin extension: e")
+            logging.error(f"Failed to load '{cog}': {e}")
 
 
     # Load left-over Modules from the cogs folder
-    for cog in os.listdir(os.path.join(settings.PROJECT_ROOT, "bot", "cogs")):
+    for cog in os.listdir(os.path.join(settings.folders["root"], "bot", "cogs")):
         if cog == "__pycache__":
             continue
         try:

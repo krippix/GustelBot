@@ -10,19 +10,26 @@ class Config:
     Please use get_config() if you only need the string in the ini
     '''
     # required folders should be written here in order to automatically create them
-    PROJECT_ROOT: pathlib.Path
-    DATA_FOLDER: pathlib.Path
-    INI_FILE: pathlib.Path
+    folders = {
+        "root": pathlib.Path,
+        "data": pathlib.Path,
+        "sounds": pathlib.Path,
+        "sounds_default": pathlib.Path,
+        "sounds_custom" : pathlib.Path
+    }
 
     config: configparser.ConfigParser()
     
     def __init__(self):
-        self.PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent
-        self.DATA_FOLDER = os.path.join(self.PROJECT_ROOT, "data")
-        self.INI_FILE = os.path.join(self.DATA_FOLDER, "config.ini")
+        self.folders["root"] = pathlib.Path(__file__).parent.parent.parent
+        self.folders["data"] = os.path.join(self.folders["root"], "data")
+        self.folders["sounds"] = os.path.join(self.folders["data"], "sounds")
+        self.folders["sounds_default"] = os.path.join(self.folders["sounds"], "default") # Hardcoded folders, cannot be played with /play command
+        self.folders["sounds_custom"] = os.path.join(self.folders["sounds"], "custom")
+        self.INI_FILE = os.path.join(self.folders["data"], "config.ini")
 
         self.config = configparser.ConfigParser()
-        self.ensureFolder(self.DATA_FOLDER)
+        self.ensureBaseFolders()
 
         self.checkConfig()
     
@@ -39,7 +46,7 @@ class Config:
 
 
     def checkConfig(self):
-        '''Check if config.ini is present, and whether it's incomplete'''
+        '''Check if config.ini is present, and whether it's incomplete. Repairs missing parts.'''
 
         # Check if 'config.ini' is present
         if not os.path.exists(self.INI_FILE):
@@ -81,6 +88,13 @@ class Config:
         except Exception as e:
             logging.error(f"Failed to write 'config.ini': {e}")
             exit()
+
+    def ensureBaseFolders(self):
+        '''Creates all folders listed '''
+        for folder in self.folders.values():
+            self.ensureFolder(folder)
+
+
 
     @staticmethod
     def ensureFolder(folder_path: pathlib.Path):

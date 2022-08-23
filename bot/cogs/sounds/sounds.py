@@ -11,7 +11,7 @@ class Sounds(commands.Cog):
         logging.debug("<init> - sounds")
 
         self.bot = bot
-        self.SOUND_FOLDER = os.path.join(settings.DATA_FOLDER, "sounds")
+        self.SOUND_FOLDER = settings.folders["sounds"]
         self.settings = settings
         self.settings.ensureFolder(self.SOUND_FOLDER)
 
