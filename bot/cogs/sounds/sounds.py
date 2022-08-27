@@ -11,9 +11,7 @@ class Sounds(commands.Cog):
         logging.debug("<init> - sounds")
 
         self.bot = bot
-        self.SOUND_FOLDER = settings.folders["sounds"]
-        self.settings = settings
-        self.settings.ensureFolder(self.SOUND_FOLDER)
+        self.SOUND_FOLDER = settings.folders["sounds_custom"]
 
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
