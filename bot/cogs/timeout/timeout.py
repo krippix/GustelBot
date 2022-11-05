@@ -23,7 +23,7 @@ class Timeout(commands.Cog):
         
         # disconnect once this variable reaches max_time
         dc_timer = 0
-        max_time = 10
+        max_time = 180
         voice_client = self.get_voice_client(after.channel)
 
         if voice_client is None:
