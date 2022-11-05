@@ -1,4 +1,4 @@
-import logging, asyncio, os
+import logging, asyncio, os, time
 import discord
 from discord.ext import commands
 from util import voice, config
@@ -12,7 +12,7 @@ class Timeout(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
-        '''Handles automatic disconnection after 30s of inactivity. Only handles sending, not recording.'''
+        '''Handles automatic disconnection after max_time seconds of inactivity. Only handles sending, not recording.'''
         logging.debug("<timeout> - voice state update")
 
         if not member.id == self.bot.user.id:
@@ -21,9 +21,9 @@ class Timeout(commands.Cog):
         if after is None:
             return
         
-        # disconnect once this variable reaches 30
+        # disconnect once this variable reaches max_time
         dc_timer = 0
-        max_time = 180
+        max_time = 10
         voice_client = self.get_voice_client(after.channel)
 
         if voice_client is None:
@@ -38,14 +38,15 @@ class Timeout(commands.Cog):
                 if voice_client.is_playing():
                     dc_timer = 0
                 
-                if dc_timer == max_time:
-                    await voice_client.play(discord.FFmpegOpusAudio(os.path.join(config.Config().folders["sounds_default"],"timeout.mp3")))
+                if dc_timer >= max_time:
+                    voice_client.play(discord.FFmpegOpusAudio(os.path.join(config.Config().folders["sounds_default"],"timeout.mp3")),)
                     while voice_client.is_playing():
-                        pass                    
+                        time.sleep(1)                
                     await voice_client.disconnect()
                     return
         # this is called when bot has been disconnected
         except Exception as e:
+            print(e)
             pass
 
 
