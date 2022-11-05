@@ -180,3 +180,8 @@ class Sounds(commands.Cog):
         await ctx.respond(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
         await voice.join_channel(ctx, ctx.author.voice.channel)
         await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
+
+
+if __name__=="__main__":
+    logging.error("This file isn't supposed to be executed!")
+    exit()

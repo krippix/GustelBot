@@ -42,19 +42,31 @@ class MagischeMiesmuschel(commands.Cog):
         
         await ctx.respond(result[0])
 
-        if ctx.voice_client is None:
+
+        # Check if channel is joinable at all
+        if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
+            return
+        if ctx.author.voice.channel != ctx.voice_client.channel:
             await voice.join_channel(ctx, ctx.author.voice.channel)
-        else:
-            # Check if bot is already in use
-            if ctx.voice_client.is_playing():
-                return
-            # Check if channel is joinable at all
-            if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
-                return
-            if ctx.author.voice.channel != ctx.voice_client.channel:
-                await voice.join_channel(ctx, ctx.author.voice.channel)
 
         
         print("Playing: ", result[1])
         await voice.play_sound(ctx, result[1])
         return
+
+
+
+    async def can_join(ctx: discord.ApplicationContext):
+        '''
+        Ensures that the bot joining currently is reasonable. Following checks:
+            - user is in a channel
+            - bot is not in a channel OR bot is not playing anything at the moment
+        '''
+        if ctx.author.voice is None:
+            return False
+        
+        if ctx.voice_client is not None:
+            if ctx.voice_client.is_playing():
+                return False
+
+        return True

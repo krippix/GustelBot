@@ -1,6 +1,7 @@
-import logging, asyncio
+import logging, asyncio, os
 import discord
 from discord.ext import commands
+from util import voice, config
 
 class Timeout(commands.Cog):
     '''This class is supposed to handle bot timeouts. Currently only using voice_state as basis.'''
@@ -23,9 +24,9 @@ class Timeout(commands.Cog):
         # disconnect once this variable reaches 30
         dc_timer = 0
         max_time = 180
-        voiceClient = self.get_voice_client(after.channel)
+        voice_client = self.get_voice_client(after.channel)
 
-        if voiceClient is None:
+        if voice_client is None:
             return
 
         try:         
@@ -34,11 +35,14 @@ class Timeout(commands.Cog):
                 dc_timer += 1
                 logging.debug(f"Disconnect timer for {after.channel}, {max_time - dc_timer}s left.")
 
-                if voiceClient.is_playing():
+                if voice_client.is_playing():
                     dc_timer = 0
                 
                 if dc_timer == max_time:
-                    await voiceClient.disconnect()
+                    await voice_client.play(discord.FFmpegOpusAudio(os.path.join(config.Config().folders["sounds_default"],"timeout.mp3")))
+                    while voice_client.is_playing():
+                        pass                    
+                    await voice_client.disconnect()
                     return
         # this is called when bot has been disconnected
         except Exception as e:
