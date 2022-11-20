@@ -4,8 +4,7 @@ My custom Discord Bot for experimenting.
 
 ## Ideas/TODO
 - Make the soundlist embed interactive.
-- Try parsing said words in voice channels.
-- 
+- ~~Try parsing said words in voice channels.~~ (Not Possible)
 
 ## Administration (currently not in use)
 The admin commands of the bot can be used if the user fulfills one (or more) of the following conditions:
