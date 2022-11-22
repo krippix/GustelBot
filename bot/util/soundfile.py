@@ -1,0 +1,2 @@
+class Soundfile:
+    pass
