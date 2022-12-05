@@ -35,3 +35,16 @@ def get_random_file(folder: pathlib.Path) -> pathlib.Path:
         return None
 
     return random.choice(files)
+
+
+def remove_extension(input: list[str]) -> list[str]:
+    '''Takes name of file and removes the extension.'''
+    output = []
+    for file in input:
+        output.append(pathlib.Path(file).stem)
+    return output
+
+
+def get_leaf_folder(path: str) -> str:
+    '''Takes path string and returns only the deepest folder.'''
+    return pathlib.Path(path).name

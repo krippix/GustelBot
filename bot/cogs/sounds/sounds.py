@@ -81,52 +81,27 @@ class Sounds(commands.Cog):
 
     @discord.slash_command(name="soundlist", description="List available sounds.")
     async def soundlist(self, ctx: discord.ApplicationContext):
-        # posts list of files in /sounds folder, without folder or extension.
-        logging.debug("<command> - soundlist")
+        '''Returns embed with list of found sounds, and their folders.'''
+        # Folders in folders are not handled!
+        # https://discord.com/developers/docs/resources/channel#embed-object
+        # TODO Logic to handle too big results (see link above for requirements)
+
+        charlen = 0
+        categories = 0 # max: 25
+
+        result_dict = {
+            "fields" : []
+            }
+
+        for tuple in os.walk(self.SOUND_FOLDER):
+            current_folder = pathlib.Path(tuple[0]).name
+            if current_folder == "custom":
+                current_folder = "Allgemein"
+            current_data = "\n".join(filemgr.remove_extension(tuple[2]))
+            result_dict["fields"].append({"name": current_folder, "value": current_data})
+            
+        await ctx.respond(embed=discord.Embed.from_dict(result_dict))
         
-        # TODO only look for actual soundfiles
-        found_files = filemgr.get_file_names(self.SOUND_FOLDER)
-
-        if not found_files:
-            await ctx.respond("No sounds found.")
-            return
-
-        # Build results into embed
-        fields = [[]]
-        field_size = 0
-        current_field = 0
-        
-        for file in found_files:
-            if field_size + len(file) < 900:
-                fields[current_field].append(file)
-                field_size += len(file)
-            else:
-                fields.append([])
-                current_field += 1
-                fields[current_field].append(file)
-                field_size = len(file)
-        
-        # TODO make interaction with embed possible, e.g multiple pages.
-        embed = discord.Embed(
-            description="**The following sounds are currently available:**"
-        )
-
-        # Add each field to the embed
-        i = 0
-        for field in fields:
-            if i < 2:
-                embed.add_field(name="Sound", value='\n'.join(field), inline=True)
-
-            i += 1
-
-        #embed.add_field(name=" ", value=found_files, inline=True)
-        #embed.add_field(name="chinchin", value="Was weiß ich denn.mp3 \nDrecksackblase", inline=True)
-        embed.set_footer(text="Page 1/1")
-
-
-        await ctx.respond(embed=embed)
-        
-        #await ctx.respond(f"**The following songs are available:**\n{reply_str}")
 
 
     def choose_sound(self, name: str = "") -> tuple:
@@ -136,7 +111,7 @@ class Sounds(commands.Cog):
             return filemgr.get_random_file(self.SOUND_FOLDER)
         
         # Search for closest match compared to string.
-        allSounds = filemgr.get_files_rec(self.SOUND_FOLDER)
+        allSounds = filemgr.get_files_rec(self.SOUND_FOLDER+"custom")
         foundSounds = []
 
         for sound in allSounds:
