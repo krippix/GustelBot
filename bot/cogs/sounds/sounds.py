@@ -111,7 +111,7 @@ class Sounds(commands.Cog):
             return filemgr.get_random_file(self.SOUND_FOLDER)
         
         # Search for closest match compared to string.
-        allSounds = filemgr.get_files_rec(self.SOUND_FOLDER+"custom")
+        allSounds = filemgr.get_files_rec(self.SOUND_FOLDER)
         foundSounds = []
 
         for sound in allSounds:
