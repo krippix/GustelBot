@@ -41,7 +41,7 @@ class Brotato(commands.Cog):
         chars = [x.lower() for x in self.database.get_brotato_char_all()]
 
         if char.lower() not in chars:
-            self.logger.debug(chars)
+            print(chars)
             await ctx.respond(f"'{char}' is an unknown character")
             return
         

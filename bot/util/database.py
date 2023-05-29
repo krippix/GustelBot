@@ -78,10 +78,12 @@ class Database():
         Returns:
             list of strings
         """
-        db_result = self.cursor.execute("SELECT name_de FROM brotato_chars").fetchall()[0]
+        db_result = self.cursor.execute("SELECT name_de FROM brotato_chars").fetchall()
         result_list = []
-        for name in db_result:
-            result_list.append(name)
+
+        for tpl in db_result:
+            result_list.append(tpl[0])
+
         return result_list
 
     # ---- Setter Functions ----
