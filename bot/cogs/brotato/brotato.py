@@ -26,7 +26,8 @@ class Brotato(commands.Cog):
 
     @brotato.command(name="highscore", description="highest run per character")
     async def highscore(self, ctx: commands.Context, difficulty: discord.Option(int, min_value=0, max_value=5, required=False)):
-        await ctx.send(self.database.get_brotato_highscore(difficulty))
+        result = self.database.get_brotato_highscore(difficulty)
+        await ctx.send(result)
 
     @brotato.command(name="list", description="displays current highscores")
     async def wasistdas(self, ctx):
