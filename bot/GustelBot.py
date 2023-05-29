@@ -19,7 +19,7 @@ logging.basicConfig(level=settings.get_loglevel(), force=True)
 intents = discord.Intents.default()
 
 # Create bot object
-bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=[settings.get_config("CLIENT","debug_guild")])
+bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=[settings.get_debug_guilds()])
 
 
 @bot.event
