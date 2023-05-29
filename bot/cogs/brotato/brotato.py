@@ -20,6 +20,14 @@ class Brotato(commands.Cog):
     # command group
     brotato = discord.SlashCommandGroup("brotato", "Collection of brotato commands")
 
+    @brotato.command(name="top5", description="returns 5 runs with highes wave")
+    async def top5(self, ctx: commands.Context):
+        pass
+
+    @brotato.command(name="highscore", description="highest run per character")
+    async def highscore(self, ctx: commands.Context, difficulty: discord.Option(int, min_value=0, max_value=5, required=False)):
+        await ctx.send(self.database.get_brotato_highscore(difficulty))
+
     @brotato.command(name="list", description="displays current highscores")
     async def wasistdas(self, ctx):
         await ctx.respond("Aaron ist letzter!")

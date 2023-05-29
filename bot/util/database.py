@@ -85,6 +85,31 @@ class Database():
             result_list.append(tpl[0])
 
         return result_list
+    
+    def get_brotato_highscore(self, diff: int) -> dict:
+        
+        result = "```"
+
+        if diff is None:
+            db_result = self.cursor.execute(
+                "SELECT u.displayname,bc.name_de,t1.wave,t1.danger "+
+                "FROM brotato_runs t1 "+
+                "INNER JOIN users u ON t1.users_id_fk = u.id_pk "+
+                "INNER JOIN brotato_chars bc ON bc.id_pk = t1.char_id_fk "+
+                "LEFT JOIN brotato_runs t2 ON t1.char_id_fk = t2.char_id_fk "+
+                "AND (t1.wave < t2.wave OR (t1.wave = t2.wave AND t1.timestamp > t2.timestamp)) "+
+                "WHERE t2.char_id_fk IS NULL;"
+            ).fetchall()
+        else:
+            return "amogus"
+
+        # TODO make nicer looking table
+
+        for tuple in db_result:
+            result += f"{tuple[1]}: {tuple[2]}, {tuple[3]}, {tuple[0]}\n"
+        result = result[:-1] + """```"""
+
+        return result
 
     # ---- Setter Functions ----
 
