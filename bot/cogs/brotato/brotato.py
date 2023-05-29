@@ -12,6 +12,7 @@ class Brotato(commands.Cog):
     """
 
     def __init__(self, bot: commands.Bot, settings: config.Config, database: database.Database):
+        self.logger = logging.getLogger(__name__)
         self.bot = bot
         self.settings = settings
         self.database = database
@@ -40,7 +41,7 @@ class Brotato(commands.Cog):
         chars = [x.lower() for x in self.database.get_brotato_char_all()]
 
         if char.lower() not in chars:
-            logging.debug(chars)
+            self.logger.debug(chars)
             await ctx.respond(f"'{char}' is an unknown character")
             return
         
