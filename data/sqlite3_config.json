@@ -1,0 +1,5 @@
+{
+    "users":         "CREATE TABLE users(id_pk TEXT NOT NULL PRIMARY KEY, displayname TEXT)",
+    "brotato_runs":  "CREATE TABLE brotato_runs(id_pk INTEGER PRIMARY KEY AUTOINCREMENT, char_id_fk INTEGER, wave INTEGER NOT NULL, danger INTEGER NOT NULL, timestamp INTEGER, users_id_fk TEXT NOT NULL, discord_id INTEGER, FOREIGN KEY (users_id_fk) REFERENCES users (id_pk), FOREIGN KEY (char_id_fk) REFERENCES brotato_chars (id_pk))",
+    "brotato_chars": "CREATE TABLE brotato_chars(id_pk INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_de TEXT NOT NULL)"
+}

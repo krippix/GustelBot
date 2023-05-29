@@ -7,6 +7,7 @@ data/*
 
 data/sounds/*
 !data/sounds/default/
+!data/sqlite3_config.json
 
 # Configuration
 config.ini
