@@ -98,7 +98,8 @@ class Database():
                 "INNER JOIN brotato_chars bc ON bc.id_pk = t1.char_id_fk "+
                 "LEFT JOIN brotato_runs t2 ON t1.char_id_fk = t2.char_id_fk "+
                 "AND (t1.wave < t2.wave OR (t1.wave = t2.wave AND t1.timestamp > t2.timestamp)) "+
-                "WHERE t2.char_id_fk IS NULL;"
+                "WHERE t2.char_id_fk IS NULL "+
+                "ORDER BY t1.wave DESC;"
             ).fetchall()
         else:
             return "amogus"
