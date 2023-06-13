@@ -10,6 +10,8 @@ data/sounds/*
 !data/sounds/default/
 !data/sqlite3_config.json
 
+!data/schemas
+
 # Configuration
 config.ini
 *.yml
