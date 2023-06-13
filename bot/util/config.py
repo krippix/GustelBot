@@ -30,7 +30,6 @@ class Config:
         
         # files
         self.INI_FILE = Path(self.folders["data"]).joinpath("config.ini")
-        self.DATABASE = Path(self.folders["data"]).joinpath("database.db")
 
         self.config = configparser.ConfigParser()
         self.ensureBaseFolders()
@@ -83,7 +82,6 @@ class Config:
         self.writeConfig()
         logging.info("Config check completed.")
 
-
     def writeConfig(self):
         '''Write config to file'''
         try:
@@ -121,24 +119,26 @@ class Config:
         defaultconfig['AUTH'] = {
             "discord_token" : ""
         }
-
         defaultconfig['CLIENT'] = {
-            "prefix" : "!",
-            "debug_guild" : ""
+            "debug_guilds" : ""
         }
-
+        defaultconfig['POSTGRES'] = {
+            "database": "",
+            "user" : "",
+            "password" : "",
+            "host" : "localhost",
+            "port" : 5432
+        }
         defaultconfig['SCRIPT'] = {
             "loglevel" : "info"
         }
-
         return defaultconfig
 
     def get_debug_guilds(self) -> list:
-        return self.get_config("CLIENT","debug_guild").split(",")
+        return self.get_config("CLIENT","debug_guilds").split(",")
 
     def get_config(self, category, key) -> str:
         '''Calling just the string within the .ini without any checks'''
-        
         try:
             return self.config[category][key]
         except Exception as e:
@@ -147,10 +147,8 @@ class Config:
     def get_inipath(self) -> Path:
         return self.INI_FILE
 
-
     def get_logpath(self) -> Path:
         pass
-
 
     def get_loglevel(self) -> int:
         '''Returns integer value of string in the config. Defaults to info'''
@@ -163,17 +161,6 @@ class Config:
         
         logging.error("Failed to determine loglevel, defaulting to debug.")
         return 20
-
-
-    def get_bot_prefix(self):
-        '''Attempts to get bot prefix from config.ini. Defaults to "!".'''
-        prefix = self.get_config("CLIENT","prefix")
-
-        if prefix == "":
-            logging.error("No Prefix configured, defaulted to '!'")
-            prefix = "!"
-        
-        return prefix
 
     #
     # ------ SETTER ------

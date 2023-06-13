@@ -1,6 +1,7 @@
 # data files
 *.json
 !data/
+test.py
 
 data/*
 !data/sounds
