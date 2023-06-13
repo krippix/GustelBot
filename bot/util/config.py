@@ -1,7 +1,7 @@
 import logging
 import os
 import configparser
-import pathlib
+from pathlib import Path
 
 class Config:
     '''
@@ -11,22 +11,25 @@ class Config:
     '''
     # required folders should be written here in order to automatically create them
     folders = {
-        "root": pathlib.Path,
-        "data": pathlib.Path,
-        "sounds": pathlib.Path,
-        "sounds_default": pathlib.Path,
-        "sounds_custom" : pathlib.Path
+        "root": Path,
+        "data": Path,
+        "sounds": Path,
+        "sounds_default": Path,
+        "sounds_custom" : Path
     }
 
     config: configparser.ConfigParser()
     
     def __init__(self):
-        self.folders["root"] = pathlib.Path(__file__).parent.parent.parent
-        self.folders["data"] = os.path.join(self.folders["root"], "data")
-        self.folders["sounds"] = os.path.join(self.folders["data"], "sounds")
-        self.folders["sounds_default"] = os.path.join(self.folders["sounds"], "default") # Hardcoded folders, cannot be played with /play command
-        self.folders["sounds_custom"] = os.path.join(self.folders["sounds"], "custom")
-        self.INI_FILE = os.path.join(self.folders["data"], "config.ini")
+        # folders
+        self.folders["root"]           = Path(__file__).parent.parent.parent
+        self.folders["data"]           = Path(self.folders["root"]).joinpath("data")
+        self.folders["sounds"]         = Path(self.folders["data"]).joinpath("sounds")
+        self.folders["sounds_default"] = Path(self.folders["sounds"]).joinpath("default") # Hardcoded folders, cannot be played with /play command
+        self.folders["sounds_custom"]  = Path(self.folders["sounds"]).joinpath("custom")
+        
+        # files
+        self.INI_FILE = Path(self.folders["data"]).joinpath("config.ini")
 
         self.config = configparser.ConfigParser()
         self.ensureBaseFolders()
@@ -79,7 +82,6 @@ class Config:
         self.writeConfig()
         logging.info("Config check completed.")
 
-
     def writeConfig(self):
         '''Write config to file'''
         try:
@@ -94,10 +96,8 @@ class Config:
         for folder in self.folders.values():
             self.ensureFolder(folder)
 
-
-
     @staticmethod
-    def ensureFolder(folder_path: pathlib.Path):
+    def ensureFolder(folder_path: Path):
         '''takes path, and creates missing folders in that path if they don't exist'''
         
         if not os.path.exists(folder_path):
@@ -119,39 +119,36 @@ class Config:
         defaultconfig['AUTH'] = {
             "discord_token" : ""
         }
-
         defaultconfig['CLIENT'] = {
-            "prefix" : "!",
-            "debug_guild" : ""
+            "debug_guilds" : ""
         }
-
+        defaultconfig['POSTGRES'] = {
+            "database": "",
+            "user" : "",
+            "password" : "",
+            "host" : "localhost",
+            "port" : 5432
+        }
         defaultconfig['SCRIPT'] = {
             "loglevel" : "info"
         }
-
         return defaultconfig
 
+    def get_debug_guilds(self) -> list:
+        return self.get_config("CLIENT","debug_guilds").split(",")
 
-    def get_config(self, category, key):
+    def get_config(self, category, key) -> str:
         '''Calling just the string within the .ini without any checks'''
-        
         try:
             return self.config[category][key]
         except Exception as e:
             logging.error(f"Failed to read 'config.ini': {e}")
 
-
-    def get_datafolder(self) -> pathlib.Path:
-        return self.DATA_FOLDER
-
-
-    def get_inipath(self) -> pathlib.Path:
+    def get_inipath(self) -> Path:
         return self.INI_FILE
 
-
-    def get_logpath(self) -> pathlib.Path:
+    def get_logpath(self) -> Path:
         pass
-
 
     def get_loglevel(self) -> int:
         '''Returns integer value of string in the config. Defaults to info'''
@@ -164,17 +161,6 @@ class Config:
         
         logging.error("Failed to determine loglevel, defaulting to debug.")
         return 20
-
-
-    def get_bot_prefix(self):
-        '''Attempts to get bot prefix from config.ini. Defaults to "!".'''
-        prefix = self.get_config("CLIENT","prefix")
-
-        if prefix == "":
-            logging.error("No Prefix configured, defaulted to '!'")
-            prefix = "!"
-        
-        return prefix
 
     #
     # ------ SETTER ------

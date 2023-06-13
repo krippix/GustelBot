@@ -40,8 +40,7 @@ class MagischeMiesmuschel(commands.Cog):
         
         result = random.choice(self.possible_answers)
         
-        await ctx.respond(result[0])
-
+        await ctx.respond(f"> {str(question)}\n{result[0]}")
 
         # Check if channel is joinable at all
         if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):

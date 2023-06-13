@@ -2,7 +2,7 @@ import logging
 import os
 import discord
 from discord.ext import commands
-from util import config
+from util import config, database
 
 
 # Set loglevel, ignoring config until config file works
@@ -10,6 +10,8 @@ logging.basicConfig(encoding='utf-8', level=10)
 
 # Check config file for errors and correct them
 settings = config.Config()
+db = database.Database()
+
 # overwrite loglevel
 logging.basicConfig(level=settings.get_loglevel(), force=True)
 
@@ -17,7 +19,7 @@ logging.basicConfig(level=settings.get_loglevel(), force=True)
 intents = discord.Intents.default()
 
 # Create bot object
-bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=[settings.get_config("CLIENT","debug_guild")])
+bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=settings.get_debug_guilds())
 
 
 @bot.event
@@ -36,9 +38,13 @@ def load_extensions(bot):
     # Manually imported cogs. To pass more variables.
     from cogs.sounds import sounds
     from cogs.magischeMiesmuschel import magischeMiesmuschel
+    from cogs.brotato import brotato
     manual_cogs = {
         'sounds': sounds.Sounds,
         'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel
+    }
+    manual_cogs_db = {
+        'brotato': brotato.Brotato
     }
     
     for cog in manual_cogs:
@@ -49,6 +55,13 @@ def load_extensions(bot):
         except Exception as e:
             logging.error(f"Failed to load '{cog}': {e}")
 
+    for cog in manual_cogs_db:
+        try:
+            logging.debug(f"Attempting to import {cog}")
+            bot.add_cog(manual_cogs_db[cog](bot, settings, db))
+            logging.info(f"Loaded Module {cog}.")
+        except Exception as e:
+            logging.error(f"Failed to load '{cog}': {type(e)}")
 
     # Load left-over Modules from the cogs folder
     for cog in os.listdir(os.path.join(settings.folders["root"], "bot", "cogs")):

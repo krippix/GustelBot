@@ -1,0 +1,11 @@
+version: "3"
+
+# https://github.com/krippix/GustelBOT
+services:
+  gustelbot:
+    container_name: gustelbot
+    image: krippix/gustelbot
+    build: .
+    volumes:
+      - '/opt/docker/GustelBot/data/:/GustelBot/data/'
+    restart: unless-stopped

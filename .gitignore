@@ -1,16 +1,19 @@
 # data files
 *.json
 !data/
+test.py
 
 data/*
 !data/sounds
 
 data/sounds/*
 !data/sounds/default/
+!data/sqlite3_config.json
 
 # Configuration
 config.ini
 *.yml
+!docker-compose-template.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
