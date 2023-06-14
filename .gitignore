@@ -15,6 +15,7 @@ data/sounds/*
 # Configuration
 config.ini
 *.yml
+!workflow/docker-image.yml
 !docker-compose-template.yml
 
 # Byte-compiled / optimized / DLL files

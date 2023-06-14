@@ -7,5 +7,5 @@ services:
     image: krippix/gustelbot
     build: .
     volumes:
-      - '/opt/docker/GustelBot/data/:/GustelBot/data/'
+      - './data/:/GustelBot/data/'
     restart: unless-stopped
