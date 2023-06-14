@@ -184,16 +184,39 @@ class Database():
                 cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);",{'name' : char})
         return
 
-    def get_brotato_highscore(self, diff: int) -> dict:
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br "+
-                    "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                    "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                    "ORDER BY wave DESC;"
-                )
-                result = cur.fetchall()
+    def get_brotato_highscore(self, diff: int) -> list[tuple]:
+        """Get highscores from database
+
+        Args:
+            diff: difficulty
+
+        Returns:
+            list[tuple]: db results
+        """
+        if diff is None:
+            with self.connection as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br "+
+                        "INNER JOIN discord_users du ON du.user_id = br.user_id "+
+                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                        "ORDER BY wave DESC "+
+                        "LIMIT 20;"
+                    )
+                    result = cur.fetchall()
+        else:
+            with self.connection as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br "+
+                        "INNER JOIN discord_users du ON du.user_id = br.user_id "+
+                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                        "WHERE br.danger=%s "+
+                        "ORDER BY wave DESC "+
+                        "LIMIT 20;",
+                        (diff,)
+                    )
+                    result = cur.fetchall()
         return result
 
     def add_brotato_run(self, char: str, wave: int, danger: int, user_id: str, server_id: int):
