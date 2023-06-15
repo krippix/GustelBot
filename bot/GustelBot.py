@@ -10,7 +10,11 @@ logging.basicConfig(encoding='utf-8', level=10)
 
 # Check config file for errors and correct them
 settings = config.Config()
-db = database.Database()
+try:
+    db = database.Database()
+except Exception as e:
+    db = None
+    logging.critical(e)
 
 # overwrite loglevel
 logging.basicConfig(level=settings.get_loglevel(), force=True)
