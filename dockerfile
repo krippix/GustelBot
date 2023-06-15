@@ -3,6 +3,7 @@ FROM python:3
 WORKDIR /GustelBot/
 
 COPY ./bot ./bot
+COPY ./data ./dataf
 COPY ./requirements.txt ./
 
 RUN apt update -y
