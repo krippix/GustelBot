@@ -135,7 +135,10 @@ class Config:
         return defaultconfig
 
     def get_debug_guilds(self) -> list:
-        return self.get_config("CLIENT","debug_guilds").split(",")
+        result = self.get_config("CLIENT","debug_guilds")
+        if result == [""]:
+            return "" 
+        return result.split(",")
 
     def get_config(self, category, key) -> str:
         '''Calling just the string within the .ini without any checks'''

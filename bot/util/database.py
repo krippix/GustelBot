@@ -17,15 +17,9 @@ class Database():
     cursor: extensions.cursor
 
     def __init__(self):
-        self.logger     = logging.getLogger(__name__)
-        self.settings   = config.Config()
-        self.connection = psycopg2.connect(
-            database = self.settings.get_config("POSTGRES","database"),
-            user     = self.settings.get_config("POSTGRES","user"),
-            password = self.settings.get_config("POSTGRES","password"),
-            host     = self.settings.get_config("POSTGRES","host"),
-            port     = self.settings.get_config("POSTGRES","port")
-        )
+        self.logger   = logging.getLogger(__name__)
+        self.settings = config.Config()
+        self.__connect()
         self.check()
 
     # ---- public functions
@@ -246,8 +240,6 @@ class Database():
                     }
                 )
 
-
-
     # -- private functions
 
     def __ensure_tables(self):
@@ -269,6 +261,33 @@ class Database():
                 with conn.cursor() as cur:
                     cur.execute(open(current_path, "r").read())
         return
+
+    def __connect(self):
+        """Connect to postgres database
+        """
+        ps_login = {
+            'database' : self.settings.get_config("POSTGRES","database"),
+            'user'     : self.settings.get_config("POSTGRES","user"),
+            'password' : self.settings.get_config("POSTGRES","password"),
+            'host'     : self.settings.get_config("POSTGRES","host"),
+            'port'     : self.settings.get_config("POSTGRES","port")
+        }
+        settings_provided = True
+        for x in ps_login.keys():
+            if ps_login[x] == "":
+                self.logger.error(f"'{x}' was not set in config.ini")
+                settings_provided = False
+        
+        if not settings_provided:
+            raise Exception("Database Unavailable due to missing credentials, port or hostname.")
+        
+        self.connection = psycopg2.connect(
+            database = ps_login['database'],
+            user     = ps_login['user'],
+            password = ps_login['password'],
+            host     = ps_login['host'],
+            port     = ps_login['port']
+        )
 
 if __name__ == "__main__":
     logging.error("This file is not supposed to be executed.")
