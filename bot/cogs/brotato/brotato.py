@@ -39,7 +39,7 @@ class Brotato(commands.Cog):
         if character is None:
             character = "alle"
 
-        msg = f"Highscores: Gefahr: `{difficulty}`, Charakter: `{character}`"
+        msg = f"Gefahr: `{difficulty}`, Charakter: `{character}`"
 
         await ctx.respond(msg+"\n"+result_table)
 
