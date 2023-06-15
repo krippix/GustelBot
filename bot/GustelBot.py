@@ -13,9 +13,8 @@ settings = config.Config()
 try:
     db = database.Database()
 except Exception as e:
-    logging.critical(e)
-finally:
     db = None
+    logging.critical(e)
 
 # overwrite loglevel
 logging.basicConfig(level=settings.get_loglevel(), force=True)

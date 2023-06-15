@@ -24,20 +24,24 @@ class Brotato(commands.Cog):
     # command group
     brotato = discord.SlashCommandGroup("brotato", "Collection of brotato commands")
 
-    @brotato.command(name="top5", description="returns 5 runs with highes wave")
-    async def top5(self, ctx: commands.Context):
-        pass
-
     @brotato.command(name="highscore", description="Shows 20 best runs")
-    async def highscore(self, ctx: commands.Context, difficulty: discord.Option(int, min_value=0, max_value=5, required=False)):
+    async def highscore(self, ctx: commands.Context, difficulty: discord.Option(int, min_value=0, max_value=5, required=False), character: discord.Option(str, required=False)):
+        
+        result = self.db.get_brotato_highscore(difficulty, character)
+        result_table = self.__format_table(result[0],result[1])
+
+        if result_table is None:
+            result_table = "```\nNichts passendes gefunden\n```"
         
         if difficulty is None:
-            msg = "Die 20 besten Runs."
-            result = self.__format_table(["Spieler","Welle","Gefahr","Charakter"],self.db.get_brotato_highscore(difficulty))
-        else:
-            msg = f"Die 20 besten Runs. Gefahr: {difficulty}"
-            result = self.__format_table(["Spieler","Welle","Charakter"],self.db.get_brotato_highscore(difficulty))
-        await ctx.respond(msg+"\n"+result)
+            difficulty = "alle"
+
+        if character is None:
+            character = "alle"
+
+        msg = f"Highscores: Gefahr: `{difficulty}`, Charakter: `{character}`"
+
+        await ctx.respond(msg+"\n"+result_table)
 
     @brotato.command(name="list", description="displays current highscores")
     async def wasistdas(self, ctx):
@@ -82,7 +86,7 @@ class Brotato(commands.Cog):
     # remove subgroup
     botato_rem = brotato.create_subgroup("remove", "remove")
 
-    def __format_table(self, header: list, lst: list[tuple]) -> str:
+    def __format_table(self, lst: list[tuple], header: list) -> str:
         """Formats input list and header into a table using monospace.
 
         Args:

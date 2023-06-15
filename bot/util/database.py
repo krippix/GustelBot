@@ -155,7 +155,7 @@ class Database():
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT id,name_en,name_de FROM brotato_chars "+
+                    "SELECT char_id,name_en,name_de FROM brotato_chars "+
                     "WHERE LOWER(name_de) = LOWER(%(name)s) OR "+
                     "LOWER(name_en) = LOWER(%(name)s);",
                     {'name' : char}
@@ -178,40 +178,88 @@ class Database():
                 cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);",{'name' : char})
         return
 
-    def get_brotato_highscore(self, diff: int) -> list[tuple]:
+    def get_brotato_highscore(self, diff: int, character: str | None) -> tuple[list[tuple],list]:
         """Get highscores from database
 
         Args:
             diff: difficulty
 
         Returns:
-            list[tuple]: db results
+            tuple[list[tuple],list]: ([(highscore,...),(highscore,...)],[heading1,heading2,...])
         """
-        if diff is None:
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br "+
-                        "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                        "ORDER BY wave DESC "+
-                        "LIMIT 20;"
-                    )
-                    result = cur.fetchall()
+        # handle if char is set/not set
+        if character is not None:
+            char_id = self.get_brotato_char(character)
+            if char_id is not None:
+                char_id = char_id[0]['id']
         else:
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br "+
-                        "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                        "WHERE br.danger=%s "+
-                        "ORDER BY wave DESC "+
-                        "LIMIT 20;",
-                        (diff,)
-                    )
-                    result = cur.fetchall()
-        return result
+            char_id = None
+
+        # this ist horrible, but sql commands with strings as parameters scare me
+        if diff is None:
+            if char_id is None:
+                # diff: no, char, no
+                with self.connection as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br "+
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                            "ORDER BY wave DESC "+
+                            "LIMIT 20;"
+                        )
+                        result = cur.fetchall()
+                        heading = ["Spieler", "Welle", "Gefahr", "Charakter"]
+            else:
+                # diff: no, char yes
+                with self.connection as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT du.name,br.wave,br.danger FROM brotato_runs br "+
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                            "WHERE br.char_id=%s "+
+                            "ORDER BY wave DESC "+
+                            "LIMIT 20;",
+                            (char_id,),
+                        )
+                        result = cur.fetchall()
+                        heading = ["Spieler", "Welle", "Gefahr"]
+        else:
+            if char_id is None:
+                # diff: yes, char, no
+                with self.connection as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br "+
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                            "WHERE br.danger=%s "+
+                            "ORDER BY wave DESC "+
+                            "LIMIT 20;",
+                            (diff,)
+                        )
+                        result = cur.fetchall()
+                        heading = ["Spieler", "Welle", "Charakter"]
+            else:
+                with self.connection as conn:
+                    # diff: yes, char, yes
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT du.name,br.wave FROM brotato_runs br "+
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                            "WHERE br.danger=%(diff)s AND "+
+                            "br.char_id=%(char_id)s "+
+                            "ORDER BY wave DESC "+
+                            "LIMIT 20;",
+                            { "diff" : diff, "char_id" : char_id }
+                        )
+                        result = cur.fetchall()
+                        heading = ["Spieler", "Welle"]
+        if result is None:
+            return None
+        return (result,heading)
 
     def add_brotato_run(self, char: str, wave: int, danger: int, user_id: str, server_id: int):
         """Creates new brotato run in the database
