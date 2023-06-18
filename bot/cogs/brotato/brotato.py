@@ -26,8 +26,16 @@ class Brotato(commands.Cog):
 
     @brotato.command(name="highscore", description="Shows 20 best runs")
     async def highscore(self, ctx: commands.Context, difficulty: discord.Option(int, min_value=0, max_value=5, required=False), character: discord.Option(str, required=False)):
-        
-        result = self.db.get_brotato_highscore(difficulty, character)
+        """Displays highscores of the current server.
+
+        Args:
+            ctx: _description_
+            difficulty: _description_. Defaults to 0, max_value=5, required=False).
+            character: _description_. Defaults to False).
+        """
+        self.__ensure_server(ctx)
+
+        result = self.db.get_brotato_highscore(difficulty, character, ctx.guild.id)
         result_table = self.__format_table(result[0],result[1])
 
         if result_table is None:
@@ -42,10 +50,6 @@ class Brotato(commands.Cog):
         msg = f"Gefahr: `{difficulty}`, Charakter: `{character}`"
 
         await ctx.respond(msg+"\n"+result_table)
-
-    @brotato.command(name="list", description="displays current highscores")
-    async def wasistdas(self, ctx):
-        await ctx.respond("Aaron ist letzter!")
     
     # add subgroup
     brotato_add = brotato.create_subgroup("add", "add")
@@ -61,18 +65,17 @@ class Brotato(commands.Cog):
         if user is None:
             user = ctx.author
 
-        chars = [x.lower() for x in self.db.get_brotato_char()]
+        self.__ensure_server(ctx)
+        self.__ensure_user(ctx, user)
 
-        if char.lower() not in chars:
-            print(chars)
+        chars = [str(x["name_de"]).lower() for x in self.db.get_brotato_char()]
+
+        if str(char).lower() not in chars:
             await ctx.respond(f"'{char}' is an unknown character")
             return
         
-        if self.db.get_user(user.id) is None:
-            self.db.add_user(user.id, user.nick)
-
         self.db.add_brotato_run(char,wave,danger,user.id,ctx.guild.id) 
-        await ctx.respond(f"Run hinzugefügt.")
+        await ctx.respond(f"**Run hinzugefügt:**\nCharakter: `{char}`, Welle: `{wave}`, Gefahr: `{danger}`")
 
     @brotato_add.command(name="char", description="add character")
     async def add_char(self, ctx: commands.Context, char: discord.Option(str)):
@@ -85,6 +88,25 @@ class Brotato(commands.Cog):
         
     # remove subgroup
     botato_rem = brotato.create_subgroup("remove", "remove")
+
+    # helper functions
+    def __ensure_server(self, ctx: commands.Context):
+        """Makes sure the context server is part of the database
+        Args:
+            ctx: command context
+        """
+        if ctx.guild is None:
+            return
+        self.db.add_server(ctx.guild.id, ctx.guild.name)
+
+    def __ensure_user(self, ctx: commands.Context, user: discord.Member):
+        """Makes sure mentioned user is part of the database
+        Args:
+            ctx: _description_
+            user: _description_
+        """
+        self.db.add_user(user.id, user.name)
+        self.db.add_user_displayname(user.id, ctx.guild.id, user.display_name)
 
     def __format_table(self, lst: list[tuple], header: list) -> str:
         """Formats input list and header into a table using monospace.

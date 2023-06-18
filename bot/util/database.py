@@ -42,7 +42,7 @@ class Database():
         """
         with self.connection as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT user_id,displayname FROM discord_users WHERE user_id=%s;",(id,))
+                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;",(id,))
                 result = cur.fetchone()
         
         if result is None:
@@ -64,7 +64,7 @@ class Database():
             return {"id": result[0], "name": result[1]}
         return {'id': result[0], 'name': displayname}
     
-    def add_user(self, id: int, name: str, server: str, displayname: str):
+    def add_user(self, id: int, name: str):
         """Add a user to the database
 
         Args:
@@ -82,17 +82,14 @@ class Database():
                     "SET name=%(name)s;"
                     ,{'id' : id, 'name' : name}
                 )
-            # add context server to db
-            self.add_server(server)
-            # add displayname of user
-            self.add_displayname(id, server, displayname)
+        return
 
     def delete_user(self, id):
         pass
         # TODO
 
 
-    def add_displayname(self, user_id: int, server_id: int, name: str):
+    def add_user_displayname(self, user_id: int, server_id: int, name: str):
         """Adds user display name to the database
 
         Args:
@@ -105,7 +102,7 @@ class Database():
                 cur.execute(
                     "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) "+
                     "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) "+
-                    "ON CONFLICT (user_id,name) DO UPDATE "+
+                    "ON CONFLICT (user_id,server_id) DO UPDATE "+
                     "SET displayname=%(displayname)s",
                     {'user_id' : user_id, 'server_id' : server_id, 'displayname' : name}
                 )
@@ -178,7 +175,7 @@ class Database():
                 cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);",{'name' : char})
         return
 
-    def get_brotato_highscore(self, diff: int, character: str | None) -> tuple[list[tuple],list]:
+    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple],list]:
         """Get highscores from database
 
         Args:
@@ -205,8 +202,10 @@ class Database():
                             "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br "+
                             "INNER JOIN discord_users du ON du.user_id = br.user_id "+
                             "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
+                            "WHERE br.server_id=%(server_id)s "+
                             "ORDER BY wave DESC "+
-                            "LIMIT 20;"
+                            "LIMIT 20;",
+                            { 'server_id' : guild_id }
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle", "Gefahr", "Charakter"]
@@ -218,10 +217,11 @@ class Database():
                             "SELECT du.name,br.wave,br.danger FROM brotato_runs br "+
                             "INNER JOIN discord_users du ON du.user_id = br.user_id "+
                             "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.char_id=%s "+
+                            "WHERE br.char_id=%(char_id)s "+
+                            "AND br.server_id=%(server_id)s "+
                             "ORDER BY wave DESC "+
                             "LIMIT 20;",
-                            (char_id,),
+                            { 'char_id' : char_id, 'server_id' : guild_id },
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle", "Gefahr"]
@@ -234,10 +234,11 @@ class Database():
                             "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br "+
                             "INNER JOIN discord_users du ON du.user_id = br.user_id "+
                             "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.danger=%s "+
+                            "WHERE br.danger=%(danger)s "+
+                            "AND br.server_id=%(server_id)s "+
                             "ORDER BY wave DESC "+
                             "LIMIT 20;",
-                            (diff,)
+                            { 'danger' : diff, 'server_id' : guild_id }
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle", "Charakter"]
@@ -249,11 +250,12 @@ class Database():
                             "SELECT du.name,br.wave FROM brotato_runs br "+
                             "INNER JOIN discord_users du ON du.user_id = br.user_id "+
                             "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.danger=%(diff)s AND "+
-                            "br.char_id=%(char_id)s "+
+                            "WHERE br.danger=%(diff)s "+
+                            "AND br.char_id=%(char_id)s "+
+                            "AND br.server_id=%(server_id)s "+
                             "ORDER BY wave DESC "+
                             "LIMIT 20;",
-                            { "diff" : diff, "char_id" : char_id }
+                            { "diff" : diff, "char_id" : char_id, 'server_id' : guild_id }
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle"]
