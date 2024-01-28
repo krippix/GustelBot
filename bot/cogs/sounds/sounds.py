@@ -48,6 +48,23 @@ class Sounds(commands.Cog):
         await self.play_sound(ctx, sound)
         return
 
+    @discord.slash_command(name="folder", description="Plays random sound from given folder.")
+    async def folder(self, ctx: discord.ApplicationContext, folder_name: discord.Option(str, "Name of folder to play sound from", name="folder")):
+        if ctx.voice_client is not None:
+            if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
+                return
+        if ctx.author.voice is None:
+            await ctx.respond("Join a channel to use this command.")
+            return
+        if folder_name == "":
+            await ctx.respond("No folder name provided")
+            return
+        sound = self.choose_sound(folder=folder_name)
+
+        if sound is None:
+            await ctx.respond("No sound found")
+            return
+        await self.play_sound(ctx, sound)
 
     @discord.slash_command(name="stop", description="Stops playback")
     async def stop(self, ctx: discord.ApplicationContext):
@@ -104,14 +121,19 @@ class Sounds(commands.Cog):
         
 
 
-    def choose_sound(self, name: str = "") -> tuple:
+    def choose_sound(self, name: str = "", folder: str = "") -> tuple:
         '''Chooses file by name (path, filename) (or randomly when no param is given.), returns None if nothing is found'''
-        
+    
+        if not folder is "":
+            path = pathlib.Path(self.SOUND_FOLDER).joinpath(folder)
+        else:
+            path = self.SOUND_FOLDER
+
         if name == "":
-            return filemgr.get_random_file(self.SOUND_FOLDER)
+            return filemgr.get_random_file(path)
         
         # Search for closest match compared to string.
-        allSounds = filemgr.get_files_rec(self.SOUND_FOLDER)
+        allSounds = filemgr.get_files_rec(path)
         foundSounds = []
 
         for sound in allSounds:

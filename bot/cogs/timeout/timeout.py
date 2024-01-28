@@ -39,7 +39,7 @@ class Timeout(commands.Cog):
                     dc_timer = 0
                 
                 if dc_timer >= max_time:
-                    voice_client.play(discord.FFmpegOpusAudio(os.path.join(config.Config().folders["sounds_default"],"timeout.mp3")),)
+                    voice_client.play(discord.FFmpegOpusAudio(os.path.join(config.Config().folders["sounds_default"],"timeout.wav")),)
                     while voice_client.is_playing():
                         time.sleep(1)                
                     await voice_client.disconnect()
