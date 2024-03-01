@@ -1,6 +1,5 @@
 import logging, os, pathlib, random
 import discord
-from difflib import SequenceMatcher
 from discord.ext import commands
 from util import config, filemgr, voice
 
@@ -8,17 +7,14 @@ class Sounds(commands.Cog):
     SOUND_FOLDER: pathlib.Path
     
     def __init__(self, bot, settings: config.Config):
-        logging.debug("<init> - sounds")
-
         self.bot = bot
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
-
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
     async def play(self, ctx: discord.ApplicationContext, sound_name: discord.Option(str, "Name of the soundfile you want to play. Leave empty for random sound.", default="", name="sound")):
         logging.debug("<command> - play")
         
-        # Check if channel is joinable at all
+        # is channel joinable
         if ctx.voice_client is not None:
             if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
                 return
@@ -27,24 +23,20 @@ class Sounds(commands.Cog):
             await ctx.respond("Join a channel to use this command.")
             return
 
-        # in case any arguments have been provided
-        if not sound_name == "":
-            sound = self.choose_sound(sound_name)
+        # choose sound to play
+        if sound_name == "":
+            sound = self.__choose_sound()
+        else:
+            sound = self.__choose_sound(sound_name)
 
-            if sound is None:
-                await ctx.respond("No sounds available.")
-                return
-
-            await self.play_sound(ctx, sound)
-            return
-        
-        # No arguments provided
-        sound = self.choose_sound()
+        # if still no sound was found, check for matching foldername instead
+        if sound is None:
+            file = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), sound_name)
+            sound = self.__choose_sound(folder=file)
 
         if sound is None:
-            await ctx.respond("No matching sound found.")
+            await ctx.respond("No sound found")
             return
-
         await self.play_sound(ctx, sound)
         return
 
@@ -56,10 +48,15 @@ class Sounds(commands.Cog):
         if ctx.author.voice is None:
             await ctx.respond("Join a channel to use this command.")
             return
+        
         if folder_name == "":
             await ctx.respond("No folder name provided")
             return
-        sound = self.choose_sound(folder=folder_name)
+        
+        # choose matching folder
+        result = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), folder_name)
+        
+        sound = self.__choose_sound(folder=result)
 
         if sound is None:
             await ctx.respond("No sound found")
@@ -99,84 +96,66 @@ class Sounds(commands.Cog):
     @discord.slash_command(name="soundlist", description="List available sounds.")
     async def soundlist(self, ctx: discord.ApplicationContext):
         '''Returns embed with list of found sounds, and their folders.'''
-        # Folders in folders are not handled!
         # https://discord.com/developers/docs/resources/channel#embed-object
         # TODO Logic to handle too big results (see link above for requirements)
-
-        charlen = 0
-        categories = 0 # max: 25
 
         result_dict = {
             "fields" : []
             }
 
-        for tuple in os.walk(self.SOUND_FOLDER):
-            current_folder = pathlib.Path(tuple[0]).name
-            if current_folder == "custom":
-                current_folder = "Allgemein"
-            current_data = "\n".join(filemgr.remove_extension(tuple[2]))
-            result_dict["fields"].append({"name": current_folder, "value": current_data})
+        # Handle root
+        folders = []
+        files = []
+        for file in self.SOUND_FOLDER.iterdir():
+            if file.is_file():
+                files.append(file)
+                continue
+            if file.is_dir():
+                folders.append(file)
+        result_dict["fields"].append({"name": "Allgemein", "value": "\r".join([x.stem for x in files])})
+
+        # Handle folders within root
+        for folder in folders:
+            files = filemgr.get_files_rec(folder)
+            result_dict["fields"].append({"name": folder.stem, "value": "\r".join([x.stem for x in files])})
             
         await ctx.respond(embed=discord.Embed.from_dict(result_dict))
-        
 
 
-    def choose_sound(self, name: str = "", folder: str = "") -> tuple:
-        '''Chooses file by name (path, filename) (or randomly when no param is given.), returns None if nothing is found'''
+    def __choose_sound(self, name: str = None, folder: pathlib.Path = None) -> tuple[pathlib.Path,float] | None:
+        """Chooses sound based on provided folder and search string.
+
+        Args:
+            name: keyword to search for. Defaults to random selection.
+            folder: path to folder to search. Defaults to None.
+
+        Returns:
+            returns Path object to sound
+        """
     
-        if not folder is "":
-            path = pathlib.Path(self.SOUND_FOLDER).joinpath(folder)
+        if folder is not None:
+            path = folder
         else:
             path = self.SOUND_FOLDER
 
-        if name == "":
+        if name is None:
             return filemgr.get_random_file(path)
         
         # Search for closest match compared to string.
-        allSounds = filemgr.get_files_rec(path)
-        foundSounds = []
+        sound_files = filemgr.get_files_rec(path)
+        found_sound = filemgr.search_files(sound_files, name)
 
-        for sound in allSounds:
-            # remove suffix for matching
-            sound_no_suffix = str(pathlib.Path(sound[1]).with_suffix(''))
-            ratio = SequenceMatcher(None, name, sound_no_suffix).ratio()
-            
-            if ratio >= 0.65:
-                foundSounds.append((sound, ratio))
-        
-        if not foundSounds:
+        if found_sound is None:
             return None
+        # TODO ensure this is actually a playable sound file
+        return found_sound
 
-        if len(foundSounds) == 1:
-            return (foundSounds[0][0][0], foundSounds[0][0][1])
-
-        # sort by ratio (desc)
-        foundSounds.sort(key=lambda x:x[1], reverse=True)
-
-        # multiple results, check if delta between first to is bigger than 10%
-        if (foundSounds[0][1] - foundSounds[1][1]) >= 0.1:
-            return (foundSounds[0][0][0], foundSounds[0][0][1])
-        
-        # if too close, choose randomly between the 3 closest results
-        i = 0
-        lastRoll = []
-
-        # finding: ((path, name), ratio)
-        for finding in foundSounds:
-            lastRoll.append(finding)
-            i += 1
-            if i == 3:
-                break
-        
-        return random.choice(lastRoll)[0]
-
-
-    async def play_sound(self, ctx, sound):
+    async def play_sound(self, ctx, sound: pathlib.Path):
         '''Actually playing the sound. This expects the provided file to work!'''
         
-        await ctx.respond(f"Playing '{pathlib.Path(sound[1]).with_suffix('')}'")
+        await ctx.respond(f"Playing '{sound.stem}'")
         await voice.join_channel(ctx, ctx.author.voice.channel)
-        await voice.play_sound(ctx, f"{sound[0]}{os.sep}{sound[1]}")
+        await voice.play_sound(ctx, f"{str(sound)}")
 
 
 if __name__=="__main__":

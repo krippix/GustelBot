@@ -1,29 +1,21 @@
 import logging, os, pathlib, random
 from util import config
+from difflib import SequenceMatcher
 
-def get_files_rec(folder: pathlib.Path) -> list:
+
+def get_files_rec(folder: pathlib.Path) -> list[pathlib.Path]:
     '''Returns list of tuples, format: (path, filename)'''
-    foundFiles = []
-    
-    for triple in os.walk(folder):        
-        for file in triple[2]:
-            foundFiles.append((triple[0], file))
-
-    foundFiles.sort()
-
-    return foundFiles
-
-
-def get_file_names(folder: pathlib.Path) -> list:
-    '''Returns list of filenames. WITHOUT path information'''
-    found_files = get_files_rec(folder)
-    file_names = []
-
-    for file in found_files:
-        file_names.append(f"{pathlib.Path(file[1]).with_suffix('')}")
-    
-    file_names.sort()
-    return file_names
+    if folder.is_file():
+        logging.error("File instead of folder provided!")
+        return []
+    found_files = []  
+    for file in folder.iterdir():
+        if file.is_file():
+            found_files.append(file)
+            continue
+        if file.is_dir():
+            found_files += get_files_rec(file)
+    return found_files
 
 
 def get_random_file(folder: pathlib.Path) -> pathlib.Path:
@@ -37,14 +29,21 @@ def get_random_file(folder: pathlib.Path) -> pathlib.Path:
     return random.choice(files)
 
 
-def remove_extension(input: list[str]) -> list[str]:
-    '''Takes name of file and removes the extension.'''
-    output = []
-    for file in input:
-        output.append(pathlib.Path(file).stem)
-    return output
+def get_folders(path: pathlib.Path) -> list[pathlib.Path]:
+    folder_list = []
+    for item in path.iterdir():
+        if item.is_dir():
+            folder_list.append(item)
+    return folder_list
 
 
-def get_leaf_folder(path: str) -> str:
-    '''Takes path string and returns only the deepest folder.'''
-    return pathlib.Path(path).name
+def search_files(lst: list[pathlib.Path], keyword: str, threshhold = 0.65) -> pathlib.Path | None:
+    result_list = []
+    for item in lst:
+        ratio = SequenceMatcher(None, item.name.lower(), keyword.lower()).ratio()
+        if ratio >= threshhold:
+            result_list.append((item, ratio))
+    result_list.sort(key = lambda x:x[1], reverse = True)
+    if len(result_list) == 0:
+        return None
+    return result_list[0][0]
