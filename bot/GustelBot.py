@@ -39,18 +39,24 @@ def load_extensions(bot):
     '''Loads extensions for bot. Manual cogs have to be imported as well.'''
     logging.info("Loading Extensions.")
 
-    # Manually imported cogs. To pass more variables.
-    from cogs.sounds import sounds
+    # Regular cogs
     from cogs.magischeMiesmuschel import magischeMiesmuschel
-    from cogs.brotato import brotato
+    from cogs.ping import ping
+    from cogs.sounds import sounds
+    from cogs.timeout import timeout
     manual_cogs = {
+        'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel,
+        'ping': ping.Ping,
         'sounds': sounds.Sounds,
-        'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel
+        'timeout': timeout.Timeout
     }
+    # cogs using database and config
+    from cogs.brotato import brotato
+    from cogs.config_server import config_server
     manual_cogs_db = {
-        'brotato': brotato.Brotato
-    }
-    
+        'brotato': brotato.Brotato,
+        'config_server': config_server.Config_Server
+    }    
     for cog in manual_cogs:
         try:
             logging.debug(f"Attempting to import {cog}")
@@ -67,18 +73,6 @@ def load_extensions(bot):
         except Exception as e:
             logging.error(f"Failed to load '{cog}': {type(e)}")
 
-    # Load left-over Modules from the cogs folder
-    for cog in os.listdir(os.path.join(settings.folders["root"], "bot", "cogs")):
-        if cog == "__pycache__":
-            continue
-        try:
-            bot.load_extension(f"cogs.{cog}")
-            logging.info(f"Loaded Module {cog}.")
-        except discord.errors.NoEntryPointError:
-            pass        
-        except Exception as e:
-            print(type(e))
-            logging.error(f"Failed to load module {cog}: {e} Continuing")
     logging.info("Finished loading Modules.")
 
 

@@ -1,12 +1,15 @@
+# default
 import logging
-
+# pip
 import discord
 from discord.ext import commands
+# internal
+from util import config
 
 class Ping(commands.Cog):
 
-    def __init__(self, bot: commands.Bot):
-        logging.debug("<ping> - __init__")
+    def __init__(self, bot, settings: config.Config):
+        self.logger = logging.getLogger(__name__)
         self.bot = bot
 
     @discord.slash_command(name="ping", description="Replies with bot's latency.")

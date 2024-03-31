@@ -6,7 +6,7 @@ from util import voice, config
 class Timeout(commands.Cog):
     '''This class is supposed to handle bot timeouts. Currently only using voice_state as basis.'''
 
-    def __init__(self, bot):
+    def __init__(self, bot, settings: config.Config):
         self.bot = bot
 
 
