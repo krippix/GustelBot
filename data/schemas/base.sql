@@ -20,3 +20,11 @@ CREATE TABLE IF NOT EXISTS discord_user_displaynames(
     PRIMARY KEY (user_id,server_id)
 );
 ALTER TABLE discord_user_displaynames ADD COLUMN IF NOT EXISTS displayname TEXT NOT NULL;
+
+-- discord_server_admin_groups
+CREATE TABLE IF NOT EXISTS discord_server_admin_groups(
+    server_id BIGINT NOT NULL,
+    group_name TEXT NOT NULL,
+    FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
+    PRIMARY KEY (server_id,group_name)
+);

@@ -22,11 +22,11 @@ class Database():
         self.__connect()
         self.check()
 
-    # ---- public functions
+    # ---- generic functions, multiple modules
 
     def check(self):
+        # executes all sql files in data/schemas
         self.__ensure_tables()
-        # TODO same for columns?
     
     # -- get/set/add/delete ----
 
@@ -125,7 +125,102 @@ class Database():
                     {'id' : id, 'name' : name}
                 )
         return
+    
+    def get_admin_groups(self, server_id: int) -> list[str]:
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT group_name FROM discord_server_admin_groups WHERE server_id=%(server_id)s",
+                    {'server_id': server_id}
+                )
+                dbresult = cur.fetchall()
+        return [x[0] for x in dbresult]
 
+    def add_admin_group(self, server_id: int, group_name: str) -> int:
+        existing_groups = self.get_admin_groups(server_id)
+
+        # check if group already exists
+        if group_name in existing_groups:
+            return 409
+
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO discord_server_admin_groups (server_id, group_name)"+
+                    "VALUES (%(server_id)s,%(group_name)s)",
+                    {'server_id' : server_id, 'group_name' : group_name}
+                )
+        return 200
+    
+    def remove_admin_group(self, server_id: int, group_name: str) -> int:
+        existing_groups = self.get_admin_groups(server_id)
+
+        if not group_name in existing_groups:
+            return 404
+        
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM discord_server_admin_groups "+
+                    "WHERE server_id=%(server_id)s AND "+
+                    "group_name=%(group_name)s;",
+                    {'server_id': server_id, 'group_name': group_name}
+                )
+
+        return 200
+
+    # -- "private" functions
+
+    def __ensure_tables(self):
+        """Executes all sql files provided in data/schemas, starting with base.sql
+        """
+        schema_folder = self.settings.folders["data"].joinpath("schemas")
+
+        # create base schema
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(open(schema_folder.joinpath("base.sql"), "r").read())
+
+        # create all other schemas
+        schemas = [x for x in os.listdir(schema_folder) if x != "base.sql" and x.endswith(".sql")]
+
+        for schema in schemas:
+            current_path = schema_folder.joinpath(schema)
+            with self.connection as conn:
+                with conn.cursor() as cur:
+                    cur.execute(open(current_path, "r").read())
+        return
+
+    def __connect(self):
+        """Connect to postgres database
+        """
+        ps_login = {
+            'database' : self.settings.get_config("POSTGRES","database"),
+            'user'     : self.settings.get_config("POSTGRES","user"),
+            'password' : self.settings.get_config("POSTGRES","password"),
+            'host'     : self.settings.get_config("POSTGRES","host"),
+            'port'     : self.settings.get_config("POSTGRES","port")
+        }
+        settings_provided = True
+        for x in ps_login.keys():
+            if ps_login[x] == "":
+                self.logger.error(f"'{x}' was not set in config.ini")
+                settings_provided = False
+        
+        if not settings_provided:
+            raise Exception("Database Unavailable due to missing credentials, port or hostname.")
+        
+        self.connection = psycopg2.connect(
+            database = ps_login['database'],
+            user     = ps_login['user'],
+            password = ps_login['password'],
+            host     = ps_login['host'],
+            port     = ps_login['port']
+        )
+
+    # ---- functions for specific modules
+
+    # -- brotato
 
     def get_brotato_char(self, char="") -> list[dict] | None:
         """Returns single char if string provided, all if not
@@ -289,55 +384,6 @@ class Database():
                         'timestamp' : int(time.time())
                     }
                 )
-
-    # -- private functions
-
-    def __ensure_tables(self):
-        """Executes all sql files provided in data/schemas, starting with base.sql
-        """
-        schema_folder = self.settings.folders["data"].joinpath("schemas")
-
-        # create base schema
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(open(schema_folder.joinpath("base.sql"), "r").read())
-
-        # create all other schemas
-        schemas = [x for x in os.listdir(schema_folder) if x != "base.sql" and x.endswith(".sql")]
-
-        for schema in schemas:
-            current_path = schema_folder.joinpath(schema)
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute(open(current_path, "r").read())
-        return
-
-    def __connect(self):
-        """Connect to postgres database
-        """
-        ps_login = {
-            'database' : self.settings.get_config("POSTGRES","database"),
-            'user'     : self.settings.get_config("POSTGRES","user"),
-            'password' : self.settings.get_config("POSTGRES","password"),
-            'host'     : self.settings.get_config("POSTGRES","host"),
-            'port'     : self.settings.get_config("POSTGRES","port")
-        }
-        settings_provided = True
-        for x in ps_login.keys():
-            if ps_login[x] == "":
-                self.logger.error(f"'{x}' was not set in config.ini")
-                settings_provided = False
-        
-        if not settings_provided:
-            raise Exception("Database Unavailable due to missing credentials, port or hostname.")
-        
-        self.connection = psycopg2.connect(
-            database = ps_login['database'],
-            user     = ps_login['user'],
-            password = ps_login['password'],
-            host     = ps_login['host'],
-            port     = ps_login['port']
-        )
 
 if __name__ == "__main__":
     logging.error("This file is not supposed to be executed.")
