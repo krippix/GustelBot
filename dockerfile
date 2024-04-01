@@ -2,12 +2,12 @@ FROM python:3.11-bookworm
 
 WORKDIR /GustelBot/
 
-COPY ./bot ./bot
-COPY ./data ./dataf
-COPY ./requirements.txt ./
+RUN apt-get update && apt-get install ffmpeg -y
 
-RUN apt-get update -y
-RUN apt-get install ffmpeg -y
-RUN pip install --no-cache-dir -r requirements.txt
+COPY ./requirements.txt ./
+RUN pip install -r requirements.txt
+
+COPY ./bot ./bot
+COPY ./data ./data
 
 CMD [ "python", "/GustelBot/bot/GustelBot.py" ]
