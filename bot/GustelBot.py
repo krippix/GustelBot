@@ -77,7 +77,6 @@ def load_extensions(bot):
             logging.info(f"Loaded Module {cog}.")
         except Exception as e:
             logging.error(f"Failed to load '{cog}': {type(e)}")
-
     logging.info("Finished loading Modules.")
 
 
@@ -85,7 +84,7 @@ def load_extensions(bot):
 if __name__ == "__main__":
     try:
         load_extensions(bot)
-        bot.run(settings.get_config("AUTH","discord_token"))
+        bot.run(settings.get_discord_token())
     except Exception:
         logging.critical(f"Failed to start bot: {traceback.format_exc()}")
         exit()

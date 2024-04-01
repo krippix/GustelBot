@@ -8,4 +8,13 @@ services:
     build: .
     volumes:
       - './data/:/GustelBot/data/'
+    environment:
+      - GUSTELBOT_LOGLEVEL: info
+      - POSTGRES_HOST: db.example.com
+      - POSTGRES_PORT: 5432
+      - POSTGRES_DB: gustelbot
+      - POSTGRES_USER: user
+      - POSTGRES_PASSWORD: pass
+      - DISCORD_TOKEN: xxxxxxx
+      - DISCORD_DEBUG_GUILDS: 123,123
     restart: unless-stopped

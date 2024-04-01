@@ -218,28 +218,14 @@ class Database():
     def __connect(self):
         """Connect to postgres database
         """
-        ps_login = {
-            'database' : self.settings.get_config("POSTGRES","database"),
-            'user'     : self.settings.get_config("POSTGRES","user"),
-            'password' : self.settings.get_config("POSTGRES","password"),
-            'host'     : self.settings.get_config("POSTGRES","host"),
-            'port'     : self.settings.get_config("POSTGRES","port")
-        }
-        settings_provided = True
-        for x in ps_login.keys():
-            if ps_login[x] == "":
-                self.logger.error(f"'{x}' was not set in config.ini")
-                settings_provided = False
-        
-        if not settings_provided:
-            raise Exception("Database Unavailable due to missing credentials, port or hostname.")
+        login = self.settings.get_database_config()
         
         self.connection = psycopg2.connect(
-            database = ps_login['database'],
-            user     = ps_login['user'],
-            password = ps_login['password'],
-            host     = ps_login['host'],
-            port     = ps_login['port']
+            database = login['db'],
+            user     = login['user'],
+            password = login['password'],
+            host     = login['host'],
+            port     = login['port']
         )
 
     # ---- functions for specific modules
