@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS discord_servers(
 );
 ALTER TABLE discord_servers ADD COLUMN IF NOT EXISTS servername TEXT;
 ALTER TABLE discord_servers ADD COLUMN IF NOT EXISTS language TEXT;
+ALTER TABLE discord_servers ADD COLUMN IF NOT EXISTS play_maxlen INTEGER DEFAULT 0;
 
 -- discord_user_displaynames
 CREATE TABLE IF NOT EXISTS discord_user_displaynames(

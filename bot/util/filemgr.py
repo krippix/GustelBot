@@ -1,6 +1,13 @@
-import logging, os, pathlib, random
-from util import config
+# default
+import logging
+import os
+import pathlib
+import random
 from difflib import SequenceMatcher
+# pip
+import mutagen
+# internal
+from util import config
 
 
 def get_files_rec(folder: pathlib.Path) -> list[pathlib.Path]:
@@ -18,15 +25,22 @@ def get_files_rec(folder: pathlib.Path) -> list[pathlib.Path]:
     return found_files
 
 
-def get_random_file(folder: pathlib.Path) -> pathlib.Path:
-    '''Returns random file from folder'''
-    
+def get_random_file(folder: pathlib.Path, maxlen: int) -> pathlib.Path:
+    """Returns random file from folder, if maxlen is 0 ignore maxlen
+    """
     files = get_files_rec(folder)
-
-    if not files:
+    files_clean = []
+    for file in files:
+        try:
+            soundlen = mutagen.File(file).info.length
+            if maxlen == 0 or soundlen <= maxlen and soundlen != 0:
+                files_clean.append(file)
+        except Exception:
+            logging.warning(f"No length found for {file}")
+            continue
+    if not files_clean:
         return None
-
-    return random.choice(files)
+    return random.choice(files_clean)
 
 
 def get_folders(path: pathlib.Path) -> list[pathlib.Path]:

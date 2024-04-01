@@ -58,6 +58,26 @@ class Config_Server(commands.Cog):
             return
         await ctx.respond(f"Group {group.name} is no longer registered as bot-admin.")
 
+    # command play group
+    config_play = config.create_subgroup("play", "configure behaviour of play command")
+
+    @config_play.command(name="maxlength", description="change maximum length when playing random sound.")
+    async def play_maxlength(
+        self, ctx: commands.Context, 
+        seconds: discord.Option(int, min = 0, max=600, description="0 means no limit")
+    ):
+        if not Config_Server.__is_allowed(ctx):
+            Config_Server.__permission_error(ctx)
+            return
+        try:            
+            self.db.set_play_maxlen(ctx.guild.id, seconds)
+        except Exception:
+            logging.error(f"Failed to set maxlength: {traceback.format_exc()}")
+            await ctx.respond("Internal Server Error")
+            return
+        await ctx.respond(f"Max length of randomly chosen tracks set to {seconds} seconds.")
+        return
+
     def __is_allowed(ctx: commands.Context):
         # Checks if access to command was justified
         if ctx.author == ctx.guild.owner:

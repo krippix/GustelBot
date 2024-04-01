@@ -166,8 +166,32 @@ class Database():
                     "group_name=%(group_name)s;",
                     {'server_id': server_id, 'group_name': group_name}
                 )
-
         return 200
+
+    def get_play_maxlen(self, server_id: int) -> int:
+        """Returns max length of randomly chosen sound
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT play_maxlen FROM discord_servers WHERE server_id = %(server_id)s",
+                    {'server_id': server_id}
+                )
+                dbresult = cur.fetchall()
+        return dbresult[0][0]
+
+    def set_play_maxlen(self, server_id: int, maxlen: int):
+        """Sets maximum amount of sound file if chosen randomly
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE discord_servers "+
+                    "SET play_maxlen = %(play_maxlen)s "+
+                    "WHERE server_id = %(server_id)s;",
+                    {'play_maxlen': maxlen, 'server_id': server_id}
+                )
+        return
 
     # -- "private" functions
 

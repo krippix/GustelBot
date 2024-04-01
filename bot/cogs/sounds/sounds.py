@@ -1,14 +1,25 @@
-import logging, os, pathlib, random
+# default
+import logging
+import os
+import pathlib
+import random
+# pip
 import discord
 from discord.ext import commands
-from util import config, filemgr, voice
+# internal
+from util import config
+from util import database
+from util import filemgr
+from util import voice
 
 class Sounds(commands.Cog):
     SOUND_FOLDER: pathlib.Path
+    db: database.Database
     
-    def __init__(self, bot, settings: config.Config):
+    def __init__(self, bot: commands.Bot, settings: config.Config, db: database.Database):
         self.bot = bot
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
+        self.db = db
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
     async def play(self, ctx: discord.ApplicationContext, sound_name: discord.Option(str, "Name of the soundfile you want to play. Leave empty for random sound.", default="", name="sound")):
@@ -25,14 +36,14 @@ class Sounds(commands.Cog):
 
         # choose sound to play
         if sound_name == "":
-            sound = self.__choose_sound()
+            sound = self.__choose_sound(maxlen=self.db.get_play_maxlen(ctx.guild.id))
         else:
-            sound = self.__choose_sound(sound_name)
+            sound = self.__choose_sound(name=sound_name,maxlen=0)
 
         # if still no sound was found, check for matching foldername instead
         if sound is None:
             file = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), sound_name)
-            sound = self.__choose_sound(folder=file)
+            sound = self.__choose_sound(folder=file,maxlen=self.db.get_play_maxlen(ctx.guild.id))
 
         if sound is None:
             await ctx.respond("No sound found")
@@ -56,7 +67,7 @@ class Sounds(commands.Cog):
         # choose matching folder
         result = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), folder_name)
         
-        sound = self.__choose_sound(folder=result)
+        sound = self.__choose_sound(folder=result,maxlen=self.db.get_play_maxlen(ctx.guild.id))
 
         if sound is None:
             await ctx.respond("No sound found")
@@ -122,7 +133,7 @@ class Sounds(commands.Cog):
         await ctx.respond(embed=discord.Embed.from_dict(result_dict))
 
 
-    def __choose_sound(self, name: str = None, folder: pathlib.Path = None) -> tuple[pathlib.Path,float] | None:
+    def __choose_sound(self, name: str = None, folder: pathlib.Path = None, maxlen: int = 0) -> tuple[pathlib.Path,float] | None:
         """Chooses sound based on provided folder and search string.
 
         Args:
@@ -139,7 +150,7 @@ class Sounds(commands.Cog):
             path = self.SOUND_FOLDER
 
         if name is None:
-            return filemgr.get_random_file(path)
+            return filemgr.get_random_file(path, maxlen)
         
         # Search for closest match compared to string.
         sound_files = filemgr.get_files_rec(path)
