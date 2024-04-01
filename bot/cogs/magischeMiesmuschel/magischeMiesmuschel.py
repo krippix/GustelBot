@@ -1,8 +1,14 @@
-import logging, pathlib, os, random
-from difflib import SequenceMatcher
+# default
+import logging
+import pathlib
+import os
+import random
+# pip
 import discord
 from discord.ext import commands
-from util import config, filemgr, voice
+# internal
+from util import config
+from util import voice
 
 class MagischeMiesmuschel(commands.Cog):
     FOLDER_MUSCHEL: pathlib.Path
