@@ -37,4 +37,5 @@ async def play_sound(ctx: commands.context, sound):
     if ctx.voice_client.is_playing():
         ctx.voice_client.stop()
 
-    ctx.voice_client.play(discord.FFmpegOpusAudio(sound))
+    # options is used for EBU R128
+    ctx.voice_client.play(discord.FFmpegOpusAudio(sound, options="-filter:a loudnorm"))
