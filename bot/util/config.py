@@ -1,7 +1,9 @@
+# default
 import logging
 import os
-import configparser
 from pathlib import Path
+# pip
+# internal
 
 class Config:
     '''
@@ -17,79 +19,40 @@ class Config:
         "sounds_default": Path,
         "sounds_custom" : Path
     }
-
-    config: configparser.ConfigParser()
+    # configuration options and their default
+    options = {
+        "GUSTELBOT_LOGLEVEL": "info",
+        "POSTGRES_HOST": "localhost",
+        "POSTGRES_PORT": "5432",
+        "POSTGRES_DB": "gustelbot",
+        "POSTGRES_USER": "gustelbot",
+        "POSTGRES_PASSWORD": "password",
+        "DISCORD_TOKEN": "xxxxx",
+        "DISCORD_DEBUG_GUILDS": ""
+    }
     
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
         # folders
         self.folders["root"]           = Path(__file__).parent.parent.parent
         self.folders["data"]           = Path(self.folders["root"]).joinpath("data")
         self.folders["sounds"]         = Path(self.folders["data"]).joinpath("sounds")
         self.folders["sounds_default"] = Path(self.folders["sounds"]).joinpath("default") # Hardcoded folders, cannot be played with /play command
         self.folders["sounds_custom"]  = Path(self.folders["sounds"]).joinpath("custom")
-        
-        # files
-        self.INI_FILE = Path(self.folders["data"]).joinpath("config.ini")
 
-        self.config = configparser.ConfigParser()
         self.ensureBaseFolders()
 
         self.checkConfig()
-    
-
-    def generateConfig(self):
-        '''Generates entire configuration anew, this will CLEAR any previous configuration'''
-        self.config = self.get_default_config()
-
-        self.writeConfig()
-        
-        logging.info("Success! config.ini has been created!")
-        logging.info("Change its parameters and restart the program.")
-        exit()
-
 
     def checkConfig(self):
-        '''Check if config.ini is present, and whether it's incomplete. Repairs missing parts.'''
-
-        # Check if 'config.ini' is present
-        if not os.path.exists(self.INI_FILE):
-            logging.warning("ini file doesen't exist, creating...")
-            self.generateConfig()
-
-        # Check if 'config.ini' is missing sections or keys
-        defaultconfig = self.get_default_config()
-        self.config.read(self.INI_FILE)
-
-        # Adding missing sections/keys (Using defaultconfig as basefile)
-        for section in defaultconfig.sections():
-            # Adding sections
-            if not section in self.config.sections():
-                logging.warning(f"Section '{section}' missing. Adding it now.")
-                self.config.add_section(section)
-            
-            # Adding keys to sections
-            for defaultkey in defaultconfig.items(section):
-                currentKeys = []
-
-                # Create list of current section keys
-                for key in self.config.items(section):
-                    currentKeys.append(key[0])
-
-                if not defaultkey[0] in currentKeys:
-                    logging.warning(f"Key '{defaultkey[0]}' missing. Adding it now.")
-                    self.config[section][defaultkey[0]] = defaultkey[1]
-                
-        self.writeConfig()
-        logging.info("Config check completed.")
-
-    def writeConfig(self):
-        '''Write config to file'''
-        try:
-            with open(self.INI_FILE, 'w') as configfile:
-                self.config.write(configfile)
-        except Exception as e:
-            logging.error(f"Failed to write 'config.ini': {e}")
-            exit()
+        """Checks if needed environment variables were set
+        """
+        # check for each key if set at all
+        for key in self.options.keys():
+            if os.environ.get(key) is None:
+                logging.warning(f"Variable {key} not provided, defaulting to {self.options[key]}")
+                os.environ[key] = self.options[key]
 
     def ensureBaseFolders(self):
         '''Creates all folders listed '''
@@ -110,66 +73,38 @@ class Config:
     # ------ GETTER ------
     #
 
-    def get_default_config(self):
-        '''Returns previously defined default config'''
-        # This is where you can define what the config.ini is supposed to look like
-        # DO NOT SET ANY API KEYS OR PASSWORDS AS DEFAULT
-        defaultconfig = configparser.ConfigParser()
-
-        defaultconfig['AUTH'] = {
-            "discord_token" : ""
-        }
-        defaultconfig['CLIENT'] = {
-            "debug_guilds" : ""
-        }
-        defaultconfig['POSTGRES'] = {
-            "database": "",
-            "user" : "",
-            "password" : "",
-            "host" : "localhost",
-            "port" : 5432
-        }
-        defaultconfig['SCRIPT'] = {
-            "loglevel" : "info"
-        }
-        return defaultconfig
-
-    def get_debug_guilds(self) -> list:
-        result = self.get_config("CLIENT","debug_guilds")
+    def get_debug_guilds(self) -> list[str]:
+        result = os.environ["DISCORD_DEBUG_GUILDS"].split(",")
         if result == [""]:
             return "" 
-        return result.split(",")
-
-    def get_config(self, category, key) -> str:
-        '''Calling just the string within the .ini without any checks'''
-        try:
-            return self.config[category][key]
-        except Exception as e:
-            logging.error(f"Failed to read 'config.ini': {e}")
-
-    def get_inipath(self) -> Path:
-        return self.INI_FILE
-
-    def get_logpath(self) -> Path:
-        pass
+        return result
 
     def get_loglevel(self) -> int:
-        '''Returns integer value of string in the config. Defaults to info'''
-        loglevel_input = self.get_config("SCRIPT","loglevel").lower()
+        """Returns configured loglevel as integer, defaults to info
+        """
+        loglevel_input = os.environ.get("GUSTELBOT_LOGLEVEL").lower()
 
         loglevels = {"debug": 10, "info": 20, "warning": 30, "error": 40, "critical": 50}
-            
-        if loglevel_input in loglevels:
-            return loglevels[loglevel_input]
         
-        logging.error("Failed to determine loglevel, defaulting to debug.")
-        return 20
+        try:
+            return loglevels[loglevel_input]
+        except Exception:
+            logging.error("Failed to determine loglevel, defaulting to INFO.")
+            return 20
 
-    #
-    # ------ SETTER ------
-    #
+    def get_database_config(self) -> dict:
+        """Returns postgres config string
+        {host,port,db,user,password}
+        """
+        return {
+            "host": os.environ.get("POSTGRES_HOST"),
+            "port": os.environ.get("POSTGRES_PORT"),
+            "db": os.environ.get("POSTGRES_DB"),
+            "user": os.environ.get("POSTGRES_USER"),
+            "password": os.environ.get("POSTGRES_PASSWORD")
+        }
 
-    def set_config(self, category, key, value):
-        ''''Sets config option.'''
-        self.config[category][key] = value
-        self.writeConfig()
+    def get_discord_token(self) -> str:
+        """Returns discord token
+        """
+        return os.environ.get("DISCORD_TOKEN")
