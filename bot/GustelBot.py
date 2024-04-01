@@ -45,18 +45,18 @@ def load_extensions(bot):
     logging.info("Loading Extensions.")
 
     # Regular cogs
-    from cogs.magischeMiesmuschel import magischeMiesmuschel
-    from cogs.ping import ping
-    from cogs.timeout import timeout
+    from cogs import magischeMiesmuschel
+    from cogs import ping
+    from cogs import timeout
     manual_cogs = {
         'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel,
         'ping': ping.Ping,
         'timeout': timeout.Timeout
     }
     # cogs using database and config
-    from cogs.brotato import brotato
-    from cogs.config_server import config_server
-    from cogs.sounds import sounds
+    from cogs import brotato
+    from cogs import config_server
+    from cogs import sounds
     manual_cogs_db = {
         'brotato': brotato.Brotato,
         'config_server': config_server.Config_Server,
