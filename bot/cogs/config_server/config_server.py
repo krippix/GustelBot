@@ -28,7 +28,7 @@ class Config_Server(commands.Cog):
     @config_admin.command(name="addgroup", description="allow group to edit bot config")
     async def admin_addgroup(self, ctx: commands.Context, group: discord.Option(discord.Role)):
         if not Config_Server.__is_allowed(ctx):
-            Config_Server.__permission_error(ctx)
+            await Config_Server.__permission_error(ctx)
             return
         try:
             result_code = self.db.add_admin_group(ctx.guild.id, group.name)
@@ -45,7 +45,7 @@ class Config_Server(commands.Cog):
     @config_admin.command(name="remgroup", description="disallow group from editing bot config")
     async def admin_delgroup(self, ctx: commands.Context, group: discord.Option(discord.Role)):
         if not Config_Server.__is_allowed(ctx):
-            Config_Server.__permission_error(ctx)
+            await Config_Server.__permission_error(ctx)
             return
         try:
             result_code = self.db.remove_admin_group(ctx.guild.id, group.name)
@@ -67,7 +67,7 @@ class Config_Server(commands.Cog):
         seconds: discord.Option(int, min = 0, max=600, description="0 means no limit")
     ):
         if not Config_Server.__is_allowed(ctx):
-            Config_Server.__permission_error(ctx)
+            await Config_Server.__permission_error(ctx)
             return
         try:            
             self.db.set_play_maxlen(ctx.guild.id, seconds)
