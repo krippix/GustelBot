@@ -6,8 +6,8 @@ COPY ./bot ./bot
 COPY ./data ./dataf
 COPY ./requirements.txt ./
 
-RUN apt update -y
-RUN apt install ffmpeg -y
+RUN apt-get update -y
+RUN apt-get install ffmpeg -y
 RUN pip install --no-cache-dir -r requirements.txt
 
 CMD [ "python", "/GustelBot/bot/GustelBot.py" ]

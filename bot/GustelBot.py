@@ -1,8 +1,13 @@
+# default
 import logging
 import os
+import traceback
+# pip
 import discord
 from discord.ext import commands
-from util import config, database
+# internal
+from util import config
+from util import database
 
 
 # Set loglevel, ignoring config until config file works
@@ -12,9 +17,9 @@ logging.basicConfig(encoding='utf-8', level=10)
 settings = config.Config()
 try:
     db = database.Database()
-except Exception as e:
+except Exception:
     db = None
-    logging.critical(e)
+    logging.critical(traceback.format_exc())
 
 # overwrite loglevel
 logging.basicConfig(level=settings.get_loglevel(), force=True)
@@ -81,6 +86,6 @@ if __name__ == "__main__":
     try:
         load_extensions(bot)
         bot.run(settings.get_config("AUTH","discord_token"))
-    except Exception as e:
-        logging.critical(f"Failed to start bot: {e}")
+    except Exception:
+        logging.critical(f"Failed to start bot: {traceback.format_exc()}")
         exit()
