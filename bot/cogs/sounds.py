@@ -1,8 +1,6 @@
 # default
 import logging
-import os
 import pathlib
-import random
 # pip
 import discord
 from discord.ext import commands
@@ -12,38 +10,34 @@ from util import database
 from util import filemgr
 from util import voice
 
+
 class Sounds(commands.Cog):
     SOUND_FOLDER: pathlib.Path
     db: database.Database
-    
+
     def __init__(self, bot: commands.Bot, settings: config.Config, db: database.Database):
         self.bot = bot
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
         self.db = db
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
-    async def play(self, ctx: discord.ApplicationContext, sound_name: discord.Option(str, "Name of the soundfile you want to play. Leave empty for random sound.", default="", name="sound")):
+    @discord.option(name="sound_name", description="Name of the sound, leave empty for random choice", required=False)
+    async def play(self, ctx: discord.ApplicationContext, sound_name: str):
         logging.debug("<command> - play")
-        
-        # is channel joinable
-        if ctx.voice_client is not None:
-            if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
-                return
-        
-        if ctx.author.voice is None:
-            await ctx.respond("Join a channel to use this command.")
+
+        if not await voice.is_joinable(ctx):
             return
 
         # choose sound to play
         if sound_name == "":
             sound = self.__choose_sound(maxlen=self.db.get_play_maxlen(ctx.guild.id))
         else:
-            sound = self.__choose_sound(name=sound_name,maxlen=0)
+            sound = self.__choose_sound(name=sound_name, maxlen=0)
 
         # if still no sound was found, check for matching foldername instead
         if sound is None:
             file = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), sound_name)
-            sound = self.__choose_sound(folder=file,maxlen=self.db.get_play_maxlen(ctx.guild.id))
+            sound = self.__choose_sound(folder=file, maxlen=self.db.get_play_maxlen(ctx.guild.id))
 
         if sound is None:
             await ctx.respond("No sound found")
@@ -52,22 +46,22 @@ class Sounds(commands.Cog):
         return
 
     @discord.slash_command(name="folder", description="Plays random sound from given folder.")
-    async def folder(self, ctx: discord.ApplicationContext, folder_name: discord.Option(str, "Name of folder to play sound from", name="folder")):
-        if ctx.voice_client is not None:
-            if ctx.author.voice.channel != ctx.voice_client.channel and not await voice.is_joinable(ctx, ctx.author.voice.channel):
-                return
+    @discord.option(name="folder", description="Folder you want to play from")
+    async def folder(self, ctx: discord.ApplicationContext, folder_name: str):
+        if Sounds.join_preparation(ctx):
+            return
         if ctx.author.voice is None:
             await ctx.respond("Join a channel to use this command.")
             return
-        
+
         if folder_name == "":
             await ctx.respond("No folder name provided")
             return
-        
+
         # choose matching folder
         result = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), folder_name)
-        
-        sound = self.__choose_sound(folder=result,maxlen=self.db.get_play_maxlen(ctx.guild.id))
+
+        sound = self.__choose_sound(folder=result, maxlen=self.db.get_play_maxlen(ctx.guild.id))
 
         if sound is None:
             await ctx.respond("No sound found")
@@ -76,7 +70,7 @@ class Sounds(commands.Cog):
 
     @discord.slash_command(name="stop", description="Stops playback")
     async def stop(self, ctx: discord.ApplicationContext):
-        
+
         if ctx.voice_client is None:
             await ctx.respond("I am not connected to any channel.")
             return
@@ -88,21 +82,19 @@ class Sounds(commands.Cog):
         ctx.voice_client.stop()
         await ctx.respond("⏹️ Playback stopped!")
 
-
     @discord.slash_command(name="disconnect", description="Disconnects bot from channel.")
     async def disconnect(self, ctx: discord.ApplicationContext):
         # Disconnect bot from current channel
         logging.debug("<command> - disconnect")
-        
+
         # This is kinda weird: ctx.voic_client is an object with type: voice_client.VoiceClient
         if ctx.voice_client is None:
             await ctx.respond("I am not connected to any channel.")
             return
-        
+
         ctx.voice_client.stop()
         await ctx.respond("Disconnecting...")
         await ctx.voice_client.disconnect()
-
 
     @discord.slash_command(name="soundlist", description="List available sounds.")
     async def soundlist(self, ctx: discord.ApplicationContext):
@@ -111,7 +103,7 @@ class Sounds(commands.Cog):
         # TODO Logic to handle too big results (see link above for requirements)
 
         result_dict = {
-            "fields" : []
+            "fields": []
             }
 
         # Handle root
@@ -129,11 +121,12 @@ class Sounds(commands.Cog):
         for folder in folders:
             files = filemgr.get_files_rec(folder)
             result_dict["fields"].append({"name": folder.stem, "value": "\r".join([x.stem for x in files])})
-            
         await ctx.respond(embed=discord.Embed.from_dict(result_dict))
 
-
-    def __choose_sound(self, name: str = None, folder: pathlib.Path = None, maxlen: int = 0) -> tuple[pathlib.Path,float] | None:
+    def __choose_sound(
+            self, name: str = None,
+            folder: pathlib.Path = None,
+            maxlen: int = 0) -> tuple[pathlib.Path, float] | None:
         """Chooses sound based on provided folder and search string.
 
         Args:
@@ -143,7 +136,7 @@ class Sounds(commands.Cog):
         Returns:
             returns Path object to sound
         """
-    
+
         if folder is not None:
             path = folder
         else:
@@ -151,7 +144,7 @@ class Sounds(commands.Cog):
 
         if name is None:
             return filemgr.get_random_file(path, maxlen)
-        
+
         # Search for closest match compared to string.
         sound_files = filemgr.get_files_rec(path)
         found_sound = filemgr.search_files(sound_files, name)
@@ -163,12 +156,25 @@ class Sounds(commands.Cog):
 
     async def play_sound(self, ctx, sound: pathlib.Path):
         '''Actually playing the sound. This expects the provided file to work!'''
-        
+
         await ctx.respond(f"Playing '{sound.stem}'")
         await voice.join_channel(ctx, ctx.author.voice.channel)
         await voice.play_sound(ctx, f"{str(sound)}")
 
+    @staticmethod
+    async def join_preparation(ctx: commands.Context) -> bool:
+        """Checks if channel has to be joined, returns False if no or not possible.
+        This function also sends a reply to notify if joining was not possible.
 
-if __name__=="__main__":
+        Args:
+            ctx: _description_
+        """
+
+        if ctx.author.voice.channel != ctx.voice_client.channel:
+            return True
+        return await voice.is_joinable(ctx)
+
+
+if __name__ == "__main__":
     logging.error("This file isn't supposed to be executed!")
     exit()

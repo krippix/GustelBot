@@ -5,6 +5,7 @@ from pathlib import Path
 # pip
 # internal
 
+
 class Config:
     '''
     This will handle configuration in this project.
@@ -17,7 +18,7 @@ class Config:
         "data": Path,
         "sounds": Path,
         "sounds_default": Path,
-        "sounds_custom" : Path
+        "sounds_custom": Path
     }
     # configuration options and their default
     options = {
@@ -30,16 +31,17 @@ class Config:
         "DISCORD_TOKEN": "xxxxx",
         "DISCORD_DEBUG_GUILDS": ""
     }
-    
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
         # folders
-        self.folders["root"]           = Path(__file__).parent.parent.parent
-        self.folders["data"]           = Path(self.folders["root"]).joinpath("data")
-        self.folders["sounds"]         = Path(self.folders["data"]).joinpath("sounds")
-        self.folders["sounds_default"] = Path(self.folders["sounds"]).joinpath("default") # Hardcoded folders, cannot be played with /play command
-        self.folders["sounds_custom"]  = Path(self.folders["sounds"]).joinpath("custom")
+        self.folders["root"] = Path(__file__).parent.parent.parent
+        self.folders["data"] = Path(self.folders["root"]).joinpath("data")
+        self.folders["sounds"] = Path(self.folders["data"]).joinpath("sounds")
+        # default folder cannot be played from /play command
+        self.folders["sounds_default"] = Path(self.folders["sounds"]).joinpath("default")
+        self.folders["sounds_custom"] = Path(self.folders["sounds"]).joinpath("custom")
 
         self.ensureBaseFolders()
 
@@ -62,7 +64,7 @@ class Config:
     @staticmethod
     def ensureFolder(folder_path: Path):
         '''takes path, and creates missing folders in that path if they don't exist'''
-        
+
         if not os.path.exists(folder_path):
             try:
                 os.makedirs(folder_path)
@@ -76,7 +78,7 @@ class Config:
     def get_debug_guilds(self) -> list[str]:
         result = os.environ["DISCORD_DEBUG_GUILDS"].split(",")
         if result == [""]:
-            return "" 
+            return ""
         return result
 
     def get_loglevel(self) -> int:
@@ -85,7 +87,7 @@ class Config:
         loglevel_input = os.environ.get("GUSTELBOT_LOGLEVEL").lower()
 
         loglevels = {"debug": 10, "info": 20, "warning": 30, "error": 40, "critical": 50}
-        
+
         try:
             return loglevels[loglevel_input]
         except Exception:

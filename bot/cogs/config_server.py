@@ -24,9 +24,10 @@ class Config_Server(commands.Cog):
 
     # config_group
     config_admin = config.create_subgroup("admin", "configure admin groups for this server")
-    
+
     @config_admin.command(name="addgroup", description="allow group to edit bot config")
-    async def admin_addgroup(self, ctx: commands.Context, group: discord.Option(discord.Role)):
+    @discord.option(name="group", description="Group to be registered as GustelBot admin")
+    async def admin_addgroup(self, ctx: commands.Context, group: discord.Role):
         if not Config_Server.__is_allowed(ctx):
             await Config_Server.__permission_error(ctx)
             return
@@ -43,7 +44,8 @@ class Config_Server(commands.Cog):
         return
 
     @config_admin.command(name="remgroup", description="disallow group from editing bot config")
-    async def admin_delgroup(self, ctx: commands.Context, group: discord.Option(discord.Role)):
+    @discord.option(name="group", description="Group to be removed from GustelBot admins")
+    async def admin_delgroup(self, ctx: commands.Context, group: discord.Role):
         if not Config_Server.__is_allowed(ctx):
             await Config_Server.__permission_error(ctx)
             return
@@ -62,14 +64,15 @@ class Config_Server(commands.Cog):
     config_play = config.create_subgroup("play", "configure behaviour of play command")
 
     @config_play.command(name="maxlength", description="change maximum length when playing random sound.")
+    @discord.option(name="seconds", min=0, max=1800, description="Maximum seconds allowed. Zero == unlimited")
     async def play_maxlength(
-        self, ctx: commands.Context, 
-        seconds: discord.Option(int, min = 0, max=600, description="0 means no limit")
+        self, ctx: commands.Context,
+        seconds: int
     ):
         if not Config_Server.__is_allowed(ctx):
             await Config_Server.__permission_error(ctx)
             return
-        try:            
+        try:
             self.db.set_play_maxlen(ctx.guild.id, seconds)
         except Exception:
             logging.error(f"Failed to set maxlength: {traceback.format_exc()}")
@@ -82,8 +85,7 @@ class Config_Server(commands.Cog):
         # Checks if access to command was justified
         if ctx.author == ctx.guild.owner:
             return True
-    
+
     async def __permission_error(ctx: commands.Context):
         await ctx.respond("You are not allowed to change server settings.")
         return
-        

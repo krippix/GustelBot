@@ -1,6 +1,5 @@
 # default
 import logging
-import os
 import traceback
 # pip
 import discord
@@ -34,7 +33,7 @@ bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=settings
 @bot.event
 async def on_ready():
     logging.info(f"Successfully logged in as {bot.user}")
-    
+
     logging.info("Setting status.")
     # await bot.change_presence(activity=discord.Game(name="["+settings.get_bot_prefix()+"]"))
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="Alexander Marcus"))
@@ -49,7 +48,7 @@ def load_extensions(bot):
     from cogs import ping
     from cogs import timeout
     manual_cogs = {
-        'magischeMiesmuschel' : magischeMiesmuschel.MagischeMiesmuschel,
+        'magischeMiesmuschel': magischeMiesmuschel.MagischeMiesmuschel,
         'ping': ping.Ping,
         'timeout': timeout.Timeout
     }
@@ -61,7 +60,7 @@ def load_extensions(bot):
         'brotato': brotato.Brotato,
         'config_server': config_server.Config_Server,
         'sounds': sounds.Sounds
-    }    
+    }
     for cog in manual_cogs:
         try:
             logging.debug(f"Attempting to import {cog}")
