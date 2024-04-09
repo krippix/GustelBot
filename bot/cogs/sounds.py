@@ -46,7 +46,7 @@ class Sounds(commands.Cog):
         return
 
     @discord.slash_command(name="folder", description="Plays random sound from given folder.")
-    @discord.option(name="folder", description="Folder you want to play from")
+    @discord.option(name="folder_name", description="Folder you want to play from")
     async def folder(self, ctx: discord.ApplicationContext, folder_name: str):
         if Sounds.join_preparation(ctx):
             return

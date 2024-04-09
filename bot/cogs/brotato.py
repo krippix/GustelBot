@@ -84,7 +84,7 @@ class Brotato(commands.Cog):
         await ctx.respond(f"**Run hinzugefügt:**\nCharakter: `{char}`, Welle: `{wave}`, Gefahr: `{danger}`")
 
     @brotato_add.command(name="char", description="add character")
-    @discord.option(name="character", description="Character to add")
+    @discord.option(name="char", description="Character to add")
     async def add_char(self, ctx: commands.Context, char: str):
         db_char = self.db.get_brotato_char(char)
         if db_char is None:
