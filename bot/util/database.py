@@ -1,10 +1,11 @@
-# external
+# default
+import logging
+import os
+import time
+# pip
 import psycopg2
 from psycopg2 import extensions
-# python native
-import logging, os, time
-from pathlib import Path
-# project
+# internal
 from util import config
 
 
@@ -17,7 +18,7 @@ class Database():
     cursor: extensions.cursor
 
     def __init__(self):
-        self.logger   = logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
         self.settings = config.Config()
         self.__connect()
         self.check()
@@ -27,7 +28,7 @@ class Database():
     def check(self):
         # executes all sql files in data/schemas
         self.__ensure_tables()
-    
+
     # -- get/set/add/delete ----
 
     def get_user(self, id: str, server_id="") -> dict | None:
@@ -42,28 +43,28 @@ class Database():
         """
         with self.connection as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;",(id,))
+                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;", (id,))
                 result = cur.fetchone()
-        
+
         if result is None:
             return None
         if server_id == "":
             return {"id": result[0], "name": result[1]}
-        
+
         # get server's display name
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT displayname FROM discord_user_displaynames "+
+                    "SELECT displayname FROM discord_user_displaynames " +
                     "WHERE user_id=%(userid)s AND server_id=%(serverid)s;",
-                    {'userid' : id, 'serverid' : server_id}
+                    {'userid': id, 'serverid': server_id}
                 )
                 displayname = cur.fetchone()
         # if no name found fall back to username
         if displayname is None:
             return {"id": result[0], "name": result[1]}
         return {'id': result[0], 'name': displayname}
-    
+
     def add_user(self, id: int, name: str):
         """Add a user to the database
 
@@ -77,17 +78,16 @@ class Database():
             # add user to db
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) "+
-                    "ON CONFLICT (user_id) DO UPDATE "+
-                    "SET name=%(name)s;"
-                    ,{'id' : id, 'name' : name}
+                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
+                    "ON CONFLICT (user_id) DO UPDATE " +
+                    "SET name=%(name)s;",
+                    {'id': id, 'name': name}
                 )
         return
 
     def delete_user(self, id):
         pass
         # TODO
-
 
     def add_user_displayname(self, user_id: int, server_id: int, name: str):
         """Adds user display name to the database
@@ -100,14 +100,14 @@ class Database():
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) "+
-                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) "+
-                    "ON CONFLICT (user_id,server_id) DO UPDATE "+
+                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
+                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
+                    "ON CONFLICT (user_id,server_id) DO UPDATE " +
                     "SET displayname=%(displayname)s",
-                    {'user_id' : user_id, 'server_id' : server_id, 'displayname' : name}
+                    {'user_id': user_id, 'server_id': server_id, 'displayname': name}
                 )
         return
-        
+
     def add_server(self, id: int, name="unknown"):
         """Adds discord server to database
 
@@ -118,14 +118,14 @@ class Database():
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO discord_servers (server_id,servername) "+
-                    "VALUES (%(id)s,%(name)s) "+
-                    "ON CONFLICT (server_id) DO UPDATE "+
+                    "INSERT INTO discord_servers (server_id,servername) " +
+                    "VALUES (%(id)s,%(name)s) " +
+                    "ON CONFLICT (server_id) DO UPDATE " +
                     "SET servername=%(name)s;",
-                    {'id' : id, 'name' : name}
+                    {'id': id, 'name': name}
                 )
         return
-    
+
     def get_admin_groups(self, server_id: int) -> list[str]:
         with self.connection as conn:
             with conn.cursor() as cur:
@@ -146,23 +146,23 @@ class Database():
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO discord_server_admin_groups (server_id, group_name)"+
+                    "INSERT INTO discord_server_admin_groups (server_id, group_name)" +
                     "VALUES (%(server_id)s,%(group_name)s)",
-                    {'server_id' : server_id, 'group_name' : group_name}
+                    {'server_id': server_id, 'group_name': group_name}
                 )
         return 200
-    
+
     def remove_admin_group(self, server_id: int, group_name: str) -> int:
         existing_groups = self.get_admin_groups(server_id)
 
-        if not group_name in existing_groups:
+        if group_name not in existing_groups:
             return 404
-        
+
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "DELETE FROM discord_server_admin_groups "+
-                    "WHERE server_id=%(server_id)s AND "+
+                    "DELETE FROM discord_server_admin_groups " +
+                    "WHERE server_id=%(server_id)s AND " +
                     "group_name=%(group_name)s;",
                     {'server_id': server_id, 'group_name': group_name}
                 )
@@ -186,8 +186,8 @@ class Database():
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE discord_servers "+
-                    "SET play_maxlen = %(play_maxlen)s "+
+                    "UPDATE discord_servers " +
+                    "SET play_maxlen = %(play_maxlen)s " +
                     "WHERE server_id = %(server_id)s;",
                     {'play_maxlen': maxlen, 'server_id': server_id}
                 )
@@ -219,13 +219,13 @@ class Database():
         """Connect to postgres database
         """
         login = self.settings.get_database_config()
-        
+
         self.connection = psycopg2.connect(
-            database = login['db'],
-            user     = login['user'],
-            password = login['password'],
-            host     = login['host'],
-            port     = login['port']
+            database=login['db'],
+            user=login['user'],
+            password=login['password'],
+            host=login['host'],
+            port=login['port']
         )
 
     # ---- functions for specific modules
@@ -248,24 +248,24 @@ class Database():
                     cur.execute("SELECT char_id,name_en,name_de FROM brotato_chars;")
                     dbresult = cur.fetchall()
             for tuple in dbresult:
-                result_list.append({'id' : tuple[0], 'name_en' : tuple[1], 'name_de' : tuple[2] })
+                result_list.append({'id': tuple[0], 'name_en': tuple[1], 'name_de': tuple[2]})
             if len(result_list) == 0:
                 return None
             return result_list
-        
+
         # input given
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT char_id,name_en,name_de FROM brotato_chars "+
-                    "WHERE LOWER(name_de) = LOWER(%(name)s) OR "+
+                    "SELECT char_id,name_en,name_de FROM brotato_chars " +
+                    "WHERE LOWER(name_de) = LOWER(%(name)s) OR " +
                     "LOWER(name_en) = LOWER(%(name)s);",
-                    {'name' : char}
+                    {'name': char}
                 )
                 dbresult = cur.fetchone()
         if dbresult is None:
             return None
-        return [{'id' : dbresult[0], 'name_en' : dbresult[1], 'name_de' : dbresult[2] }]
+        return [{'id': dbresult[0], 'name_en': dbresult[1], 'name_de': dbresult[2]}]
 
     def add_brotato_char(self, char: str):
         """Adds new character to database
@@ -277,10 +277,10 @@ class Database():
             return
         with self.connection as conn:
             with conn.cursor() as cur:
-                cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);",{'name' : char})
+                cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);", {'name': char})
         return
 
-    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple],list]:
+    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple], list]:
         """Get highscores from database
 
         Args:
@@ -304,13 +304,13 @@ class Database():
                 with self.connection as conn:
                     with conn.cursor() as cur:
                         cur.execute(
-                            "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br "+
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.server_id=%(server_id)s "+
-                            "ORDER BY wave DESC "+
+                            "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br " +
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                            "WHERE br.server_id=%(server_id)s " +
+                            "ORDER BY wave DESC " +
                             "LIMIT 20;",
-                            { 'server_id' : guild_id }
+                            {'server_id': guild_id}
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle", "Gefahr", "Charakter"]
@@ -319,14 +319,14 @@ class Database():
                 with self.connection as conn:
                     with conn.cursor() as cur:
                         cur.execute(
-                            "SELECT du.name,br.wave,br.danger FROM brotato_runs br "+
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.char_id=%(char_id)s "+
-                            "AND br.server_id=%(server_id)s "+
-                            "ORDER BY wave DESC "+
+                            "SELECT du.name,br.wave,br.danger FROM brotato_runs br " +
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                            "WHERE br.char_id=%(char_id)s " +
+                            "AND br.server_id=%(server_id)s " +
+                            "ORDER BY wave DESC " +
                             "LIMIT 20;",
-                            { 'char_id' : char_id, 'server_id' : guild_id },
+                            {'char_id': char_id, 'server_id': guild_id},
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle", "Gefahr"]
@@ -336,14 +336,14 @@ class Database():
                 with self.connection as conn:
                     with conn.cursor() as cur:
                         cur.execute(
-                            "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br "+
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.danger=%(danger)s "+
-                            "AND br.server_id=%(server_id)s "+
-                            "ORDER BY wave DESC "+
+                            "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br " +
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                            "WHERE br.danger=%(danger)s " +
+                            "AND br.server_id=%(server_id)s " +
+                            "ORDER BY wave DESC " +
                             "LIMIT 20;",
-                            { 'danger' : diff, 'server_id' : guild_id }
+                            {'danger': diff, 'server_id': guild_id}
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle", "Charakter"]
@@ -352,21 +352,21 @@ class Database():
                     # diff: yes, char, yes
                     with conn.cursor() as cur:
                         cur.execute(
-                            "SELECT du.name,br.wave FROM brotato_runs br "+
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id "+
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id "+
-                            "WHERE br.danger=%(diff)s "+
-                            "AND br.char_id=%(char_id)s "+
-                            "AND br.server_id=%(server_id)s "+
-                            "ORDER BY wave DESC "+
+                            "SELECT du.name,br.wave FROM brotato_runs br " +
+                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                            "WHERE br.danger=%(diff)s " +
+                            "AND br.char_id=%(char_id)s " +
+                            "AND br.server_id=%(server_id)s " +
+                            "ORDER BY wave DESC " +
                             "LIMIT 20;",
-                            { "diff" : diff, "char_id" : char_id, 'server_id' : guild_id }
+                            {"diff": diff, "char_id": char_id, 'server_id': guild_id}
                         )
                         result = cur.fetchall()
                         heading = ["Spieler", "Welle"]
         if result is None:
             return None
-        return (result,heading)
+        return (result, heading)
 
     def add_brotato_run(self, char: str, wave: int, danger: int, user_id: str, server_id: int):
         """Creates new brotato run in the database
@@ -383,17 +383,18 @@ class Database():
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO brotato_runs (user_id,server_id,char_id,wave,danger,timestamp) "+
+                    "INSERT INTO brotato_runs (user_id,server_id,char_id,wave,danger,timestamp) " +
                     "VALUES (%(user_id)s,%(server_id)s,%(char_id)s,%(wave)s,%(danger)s,%(timestamp)s);",
                     {
-                        'user_id' : user_id,
-                        'server_id' : server_id,
-                        'char_id' : char_id,
-                        'wave' : wave,
-                        'danger' : danger,
-                        'timestamp' : int(time.time())
+                        'user_id': user_id,
+                        'server_id': server_id,
+                        'char_id': char_id,
+                        'wave': wave,
+                        'danger': danger,
+                        'timestamp': int(time.time())
                     }
                 )
+
 
 if __name__ == "__main__":
     logging.error("This file is not supposed to be executed.")

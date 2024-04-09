@@ -6,6 +6,7 @@ from discord.ext import commands
 # internal
 from util import config
 
+
 class Ping(commands.Cog):
 
     def __init__(self, bot, settings: config.Config):

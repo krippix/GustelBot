@@ -1,16 +1,21 @@
+# default
 import logging
+# pip
 import discord
 from discord.ext import commands
+# internal
 
-async def is_joinable(ctx: commands.context, channel: discord.VoiceChannel) -> bool:
-    # Checks if voice channel can be joined, returns tuple (True/False, "reason")
-    
+
+async def is_joinable(ctx: commands.context) -> bool:
+    # Check if author's channel is valid
+    if ctx.author.voice.channel is None:
+        await ctx.respond("You have to join a channel to use this command.")
+        return False
     # Check if Channel is full
-    if channel.user_limit != 0:
-        if channel.user_limit == len(channel.members):
-            await ctx.send("Channel is already full.")
+    if ctx.author.voice.channel.user_limit != 0:
+        if ctx.author.voice.channel.user_limit == len(ctx.author.channel.members):
+            await ctx.respond("Channel is already full.")
             return False
-    
     return True
 
 
@@ -33,7 +38,6 @@ async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
 
 async def play_sound(ctx: commands.context, sound):
     '''Plays sound in current channel'''
-    
     if ctx.voice_client.is_playing():
         ctx.voice_client.stop()
 
