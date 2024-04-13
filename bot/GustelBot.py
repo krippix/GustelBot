@@ -32,6 +32,8 @@ intents = discord.Intents.default()
 bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=settings.get_debug_guilds())
 
 # ----- database maintenance
+
+
 @bot.event
 async def on_ready():
     logging.info(f"Successfully logged in as {bot.user}")
@@ -60,7 +62,7 @@ async def check_guilds():
     """
     discord_guilds = [guild async for guild in bot.fetch_guilds()]
     for guild in discord_guilds:
-        if srv := db.get_server(server_id=guild.id) is not None:
+        if (srv := db.get_server(server_id=guild.id)) is not None:
             if srv['name'] == guild.name:
                 continue
         db.add_server(server_id=guild.id, name=guild.name)
