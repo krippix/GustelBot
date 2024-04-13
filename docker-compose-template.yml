@@ -1,5 +1,3 @@
-version: "3"
-
 # https://github.com/krippix/GustelBOT
 services:
   gustelbot:
