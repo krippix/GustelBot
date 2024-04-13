@@ -18,6 +18,10 @@ config.ini
 !workflow/docker-image.yml
 !docker-compose-template.yml
 
+# IDE
+.vscode/
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

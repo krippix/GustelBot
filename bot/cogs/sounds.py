@@ -162,7 +162,7 @@ class Sounds(commands.Cog):
         await voice.play_sound(ctx, f"{str(sound)}")
 
     @staticmethod
-    async def join_preparation(ctx: commands.Context) -> bool:
+    async def join_preparation(ctx: commands.Context | discord.ApplicationContext) -> bool:
         """Checks if channel has to be joined, returns False if no or not possible.
         This function also sends a reply to notify if joining was not possible.
 
