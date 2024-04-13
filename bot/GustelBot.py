@@ -75,11 +75,11 @@ def load_extensions(bot):
     logging.info("Loading Extensions.")
 
     # Regular cogs
-    from cogs import magischeMiesmuschel
+    from cogs import magicConchShell
     from cogs import ping
     from cogs import timeout
     manual_cogs = {
-        'magischeMiesmuschel': magischeMiesmuschel.MagischeMiesmuschel,
+        'magic_conch_shell': magicConchShell.MagicConchShell,
         'ping': ping.Ping,
         'timeout': timeout.Timeout
     }
@@ -99,7 +99,7 @@ def load_extensions(bot):
             bot.add_cog(manual_cogs[cog](bot, settings))
             logging.info(f"Loaded Module {cog}.")
         except Exception as e:
-            logging.error(f"Failed to load '{cog}': {e}")
+            logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
 
     for cog in manual_cogs_db:
         try:
@@ -107,7 +107,7 @@ def load_extensions(bot):
             bot.add_cog(manual_cogs_db[cog](bot, settings, db))
             logging.info(f"Loaded Module {cog}.")
         except Exception as e:
-            logging.error(f"Failed to load '{cog}': {type(e)}")
+            logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
     logging.info("Finished loading Modules.")
 
 

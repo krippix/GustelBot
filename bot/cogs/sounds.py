@@ -5,10 +5,10 @@ import pathlib
 import discord
 from discord.ext import commands
 # internal
-from util import config
-from util import database
-from util import filemgr
-from util import voice
+from bot.util import config
+from bot.util import database
+from bot.util import filemgr
+from bot.util import voice
 
 
 class Sounds(commands.Cog):
@@ -42,7 +42,7 @@ class Sounds(commands.Cog):
         if sound is None:
             await ctx.respond("No sound found")
             return
-        await self.play_sound(ctx, sound)
+        await Sounds.play_sound(ctx, sound)
         return
 
     @discord.slash_command(name="folder", description="Plays random sound from given folder.")
@@ -66,7 +66,7 @@ class Sounds(commands.Cog):
         if sound is None:
             await ctx.respond("No sound found")
             return
-        await self.play_sound(ctx, sound)
+        await Sounds.play_sound(ctx, sound)
 
     @discord.slash_command(name="stop", description="Stops playback")
     async def stop(self, ctx: discord.ApplicationContext):
@@ -154,10 +154,13 @@ class Sounds(commands.Cog):
         # TODO ensure this is actually a playable sound file
         return found_sound
 
-    async def play_sound(self, ctx, sound: pathlib.Path):
-        '''Actually playing the sound. This expects the provided file to work!'''
-
-        await ctx.respond(f"Playing '{sound.stem}'")
+    @staticmethod
+    async def play_sound(ctx, sound: pathlib.Path, message=True):
+        """
+        Actually playing the sound. This expects the provided file to work!
+        """
+        if message:
+            await ctx.respond(f"Playing '{sound.stem}'")
         await voice.join_channel(ctx, ctx.author.voice.channel)
         await voice.play_sound(ctx, f"{str(sound)}")
 
