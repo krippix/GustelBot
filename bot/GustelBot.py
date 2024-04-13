@@ -4,6 +4,7 @@ import traceback
 # pip
 import discord
 from discord.ext import commands
+from discord.ext import tasks
 # internal
 from util import config
 from util import database
@@ -19,6 +20,7 @@ try:
 except Exception:
     db = None
     logging.critical(traceback.format_exc())
+    exit()
 
 # overwrite loglevel
 logging.basicConfig(level=settings.get_loglevel(), force=True)
@@ -29,18 +31,45 @@ intents = discord.Intents.default()
 # Create bot object
 bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=settings.get_debug_guilds())
 
-
+# ----- database maintenance
 @bot.event
 async def on_ready():
     logging.info(f"Successfully logged in as {bot.user}")
 
     logging.info("Setting status.")
-    # await bot.change_presence(activity=discord.Game(name="["+settings.get_bot_prefix()+"]"))
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="Alexander Marcus"))
+    check_guilds.start()
+
+
+@bot.event
+async def on_guild_join(guild: discord.Guild):
+    logging.info(f"Joined {guild.name}")
+    db.add_server(server_id=guild.id, name=guild.name)
+
+
+@bot.event
+async def on_guild_update(_, guild: discord.Guild):
+    logging.info(f"Guild {guild.name} was updated")
+    db.add_server(server_id=guild.id, name=guild.name)
+
+
+@tasks.loop(hours=1)
+async def check_guilds():
+    """
+    Checks if all guilds are part of the database and data is up-to-date
+    """
+    discord_guilds = [guild async for guild in bot.fetch_guilds()]
+    for guild in discord_guilds:
+        if srv := db.get_server(server_id=guild.id) is not None:
+            if srv['name'] == guild.name:
+                continue
+        db.add_server(server_id=guild.id, name=guild.name)
 
 
 def load_extensions(bot):
-    '''Loads extensions for bot. Manual cogs have to be imported as well.'''
+    """
+    Loads extensions for bot. Manual cogs have to be imported as well.
+    """
     logging.info("Loading Extensions.")
 
     # Regular cogs
@@ -52,6 +81,7 @@ def load_extensions(bot):
         'ping': ping.Ping,
         'timeout': timeout.Timeout
     }
+
     # cogs using database and config
     from cogs import brotato
     from cogs import config_server

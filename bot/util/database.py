@@ -6,10 +6,10 @@ import time
 import psycopg2
 from psycopg2 import extensions
 # internal
-from util import config
+from . import config
 
 
-class Database():
+class Database:
     """Implements a connection to a postgres db.
     Using 'with' on each connection usage ensures that they are commited after finishing.
     """
@@ -108,21 +108,54 @@ class Database():
                 )
         return
 
-    def add_server(self, id: int, name="unknown"):
+    def get_server(self, server_id=None) -> dict | list[dict] | None:
+        """
+        Returns all servers if no server_id is provided.
+        """
+        if server_id is None:
+            with self.connection as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT server_id,servername,language,play_maxlen FROM discord_servers")
+                    db_result = cur.fetchall()
+            return [{
+                'server_id': row[0],
+                'servername': row[1],
+                'language': row[2],
+                'play_maxlen': row[3]
+            } for row in db_result]
+
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT server_id,servername,language,play_maxlen FROM discord_servers " +
+                    "WHERE (server_id=%(server_id)s);",
+                    {'server_id': server_id}
+                )
+                db_result = cur.fetchall()
+        if not db_result:
+            return None
+        return {
+            'server_id': server_id,
+            'servername': db_result[0][1],
+            'language': db_result[0][2],
+            'play_maxlen': db_result[0][3]
+        }
+
+    def add_server(self, server_id: int, name="unknown"):
         """Adds discord server to database
 
         Args:
-            id: discord server id
+            server_id: discord server id
             name: server displayname. Defaults to "unknown".
         """
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO discord_servers (server_id,servername) " +
-                    "VALUES (%(id)s,%(name)s) " +
+                    "VALUES (%(server_id)s,%(name)s) " +
                     "ON CONFLICT (server_id) DO UPDATE " +
                     "SET servername=%(name)s;",
-                    {'id': id, 'name': name}
+                    {'server_id': server_id, 'name': name}
                 )
         return
 
