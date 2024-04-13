@@ -98,7 +98,7 @@ def load_extensions(bot):
             logging.debug(f"Attempting to import {cog}")
             bot.add_cog(manual_cogs[cog](bot, settings))
             logging.info(f"Loaded Module {cog}.")
-        except Exception as e:
+        except Exception:
             logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
 
     for cog in manual_cogs_db:
@@ -106,7 +106,7 @@ def load_extensions(bot):
             logging.debug(f"Attempting to import {cog}")
             bot.add_cog(manual_cogs_db[cog](bot, settings, db))
             logging.info(f"Loaded Module {cog}.")
-        except Exception as e:
+        except Exception:
             logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
     logging.info("Finished loading Modules.")
 

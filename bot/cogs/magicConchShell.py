@@ -1,7 +1,6 @@
 # default
 import logging
 from pathlib import Path
-import os
 import random
 # pip
 import discord
