@@ -63,7 +63,7 @@ async def check_guilds():
     discord_guilds = [guild async for guild in bot.fetch_guilds()]
     for guild in discord_guilds:
         if (srv := db.get_server(server_id=guild.id)) is not None:
-            if srv['name'] == guild.name:
+            if srv['servername'] == guild.name:
                 continue
         db.add_server(server_id=guild.id, name=guild.name)
 
