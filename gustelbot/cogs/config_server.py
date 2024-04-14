@@ -9,15 +9,13 @@ from gustelbot.util import config
 from gustelbot.util import database
 
 
-class Config_Server(commands.Cog):
+class ConfigServer(commands.Cog):
     """Allows configuration of server-side bot commands
     """
-    db: database.Database
 
-    def __init__(self, bot: commands.Bot, settings: config.Config, db: database.Database):
+    def __init__(self, bot: commands.Bot, _: config.Config):
         self.logger = logging.getLogger(__name__)
         self.bot = bot
-        self.db = db
 
     # command group
     config = discord.SlashCommandGroup("config", "configure this server")
@@ -27,12 +25,17 @@ class Config_Server(commands.Cog):
 
     @config_admin.command(name="addgroup", description="allow group to edit bot config")
     @discord.option(name="group", description="Group to be registered as GustelBot admin")
-    async def admin_addgroup(self, ctx: commands.Context, group: discord.Role):
-        if not Config_Server.__is_allowed(ctx):
-            await Config_Server.__permission_error(ctx)
+    async def admin_addgroup(self, ctx: commands.Context | discord.ApplicationContext, group: discord.Role):
+        """
+        Adds a new group to allowed bot admins within this server
+        """
+        db_con = database.Database()
+
+        if not ConfigServer.__is_allowed(ctx):
+            await ConfigServer.__permission_error(ctx)
             return
         try:
-            result_code = self.db.add_admin_group(ctx.guild.id, group.name)
+            result_code = db_con.add_admin_group(ctx.guild.id, group.name)
         except Exception:
             logging.error(f"Failed to add admin group: {traceback.format_exc()}")
             await ctx.respond("Internal Server Error")
@@ -45,12 +48,17 @@ class Config_Server(commands.Cog):
 
     @config_admin.command(name="remgroup", description="disallow group from editing bot config")
     @discord.option(name="group", description="Group to be removed from GustelBot admins")
-    async def admin_delgroup(self, ctx: commands.Context, group: discord.Role):
-        if not Config_Server.__is_allowed(ctx):
-            await Config_Server.__permission_error(ctx)
+    async def admin_delgroup(self, ctx: commands.Context | discord.ApplicationContext, group: discord.Role):
+        """
+        Removes a group grom local server admins
+        """
+        db_con = database.Database()
+
+        if not ConfigServer.__is_allowed(ctx):
+            await ConfigServer.__permission_error(ctx)
             return
         try:
-            result_code = self.db.remove_admin_group(ctx.guild.id, group.name)
+            result_code = db_con.remove_admin_group(ctx.guild.id, group.name)
         except Exception:
             logging.error(f"Failed to remove admin group: {traceback.format_exc()}")
             await ctx.respond("Internal Server Error")
@@ -66,14 +74,18 @@ class Config_Server(commands.Cog):
     @config_play.command(name="maxlength", description="change maximum length when playing random sound.")
     @discord.option(name="seconds", min=0, max=1800, description="Maximum seconds allowed. Zero == unlimited")
     async def play_maxlength(
-        self, ctx: commands.Context,
+        self, ctx: commands.Context | discord.ApplicationContext,
         seconds: int
     ):
-        if not Config_Server.__is_allowed(ctx):
-            await Config_Server.__permission_error(ctx)
+        """
+        Sets maximum length of the song played when searching for random sound
+        """
+        db_con = database.Database()
+        if not ConfigServer.__is_allowed(ctx):
+            await ConfigServer.__permission_error(ctx)
             return
         try:
-            self.db.set_play_maxlen(ctx.guild.id, seconds)
+            db_con.set_play_maxlen(ctx.guild.id, seconds)
         except Exception:
             logging.error(f"Failed to set maxlength: {traceback.format_exc()}")
             await ctx.respond("Internal Server Error")
@@ -81,11 +93,13 @@ class Config_Server(commands.Cog):
         await ctx.respond(f"Max length of randomly chosen tracks set to {seconds} seconds.")
         return
 
+    @staticmethod
     def __is_allowed(ctx: commands.Context):
         # Checks if access to command was justified
         if ctx.author == ctx.guild.owner:
             return True
 
-    async def __permission_error(ctx: commands.Context):
+    @staticmethod
+    async def __permission_error(ctx: commands.Context | discord.ApplicationContext):
         await ctx.respond("You are not allowed to change server settings.")
         return

@@ -1,8 +1,8 @@
-import gustelbot
+from gustelbot import gustelbot
 
 
 def main():
-    gustelbot.gustelbot.start()
+    gustelbot.start()
 
 
 if __name__ == '__main__':

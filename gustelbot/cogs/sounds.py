@@ -22,11 +22,10 @@ class Sounds(commands.Cog):
     SOUND_FOLDER: pathlib.Path
     db: database.Database
 
-    def __init__(self, bot: commands.Bot, settings: config.Config, db: database.Database):
+    def __init__(self, bot: commands.Bot, settings: config.Config):
         self.logger = logging.getLogger(__name__)
         self.bot = bot
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
-        self.db = db
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
     @discord.option(name="sound_name", description="Name of the sound, leave empty for random choice", required=False)
@@ -55,7 +54,7 @@ class Sounds(commands.Cog):
         return
 
     @discord.slash_command(name="stop", description="Stops playback")
-    async def stop(self, ctx: discord.ApplicationContext):
+    async def stop(self, ctx: commands.Context | discord.ApplicationContext):
 
         if ctx.voice_client is None:
             await ctx.respond("I am not connected to any channel.")
@@ -69,7 +68,7 @@ class Sounds(commands.Cog):
         await ctx.respond("⏹️ Playback stopped!")
 
     @discord.slash_command(name="disconnect", description="Disconnects bot from channel.")
-    async def disconnect(self, ctx: discord.ApplicationContext):
+    async def disconnect(self, ctx: commands.Context | discord.ApplicationContext):
         # Disconnect bot from current channel
         logging.debug("<command> - disconnect")
 
@@ -156,7 +155,7 @@ class Sounds(commands.Cog):
 
         try:
             self.__create_sound_file(
-                tmp_file_path,sound_name, tags, private,
+                tmp_file_path, sound_name, tags, private,
                 file_md5, db_con, ctx.guild.id, ctx.author.id
             )
         except Exception:
@@ -203,7 +202,7 @@ class Sounds(commands.Cog):
 
     @sound_upload.error
     async def on_sound_upload_error(self, ctx: discord.ApplicationContext, _: discord.DiscordException):
-        await ctx.respond(f'Internal server error.')
+        await ctx.respond('Internal server error.')
 
     def __create_sound_link(self, existing_file: tuple, sound_name: str, tags: list[str], private: bool):
         """

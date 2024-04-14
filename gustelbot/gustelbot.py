@@ -69,7 +69,7 @@ async def check_guilds():
         db.add_server(server_id=guild.id, name=guild.name)
 
 
-def load_extensions(bot):
+def load_extensions():
     """
     Loads extensions for bot. Manual cogs have to be imported as well.
     """
@@ -79,33 +79,22 @@ def load_extensions(bot):
     from gustelbot.cogs import magicConchShell
     from gustelbot.cogs import ping
     from gustelbot.cogs import timeout
-    manual_cogs = {
-        'magic_conch_shell': magicConchShell.MagicConchShell,
-        'ping': ping.Ping,
-        'timeout': timeout.Timeout
-    }
-
-    # cogs using database and config
     from gustelbot.cogs import brotato
     from gustelbot.cogs import config_server
     from gustelbot.cogs import sounds
-    manual_cogs_db = {
+    manual_cogs = {
+        'magic_conch_shell': magicConchShell.MagicConchShell,
+        'ping': ping.Ping,
+        'timeout': timeout.Timeout,
         'brotato': brotato.Brotato,
-        'config_server': config_server.Config_Server,
+        'config_server': config_server.ConfigServer,
         'sounds': sounds.Sounds
     }
+
     for cog in manual_cogs:
         try:
             logging.debug(f"Attempting to import {cog}")
             bot.add_cog(manual_cogs[cog](bot, settings))
-            logging.info(f"Loaded Module {cog}.")
-        except Exception:
-            logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
-
-    for cog in manual_cogs_db:
-        try:
-            logging.debug(f"Attempting to import {cog}")
-            bot.add_cog(manual_cogs_db[cog](bot, settings, db))
             logging.info(f"Loaded Module {cog}.")
         except Exception:
             logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
@@ -115,7 +104,7 @@ def load_extensions(bot):
 # Launch Bot
 def start():
     try:
-        load_extensions(bot)
+        load_extensions()
         bot.run(settings.get_discord_token())
     except Exception:
         logging.critical(f"Failed to start bot: {traceback.format_exc()}")

@@ -31,83 +31,6 @@ class Database:
 
     # -- get/set/add/delete ----
 
-    def get_user(self, id: str, server_id="") -> dict | None:
-        """Returns user with the provided id
-
-        Args:
-            id: user's discord id
-            server_id: context discord server if empty returns username
-
-        Returns:
-            json: {id,name}
-        """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;", (id,))
-                result = cur.fetchone()
-
-        if result is None:
-            return None
-        if server_id == "":
-            return {"id": result[0], "name": result[1]}
-
-        # get server's display name
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT displayname FROM discord_user_displaynames " +
-                    "WHERE user_id=%(userid)s AND server_id=%(serverid)s;",
-                    {'userid': id, 'serverid': server_id}
-                )
-                displayname = cur.fetchone()
-        # if no name found fall back to username
-        if displayname is None:
-            return {"id": result[0], "name": result[1]}
-        return {'id': result[0], 'name': displayname}
-
-    def add_user(self, id: int, name: str):
-        """Add a user to the database
-
-        Args:
-            id: discord user id
-            name: discord username
-            server: server id where user is beeing added from
-            displayname: servers displayname
-        """
-        with self.connection as conn:
-            # add user to db
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
-                    "ON CONFLICT (user_id) DO UPDATE " +
-                    "SET name=%(name)s;",
-                    {'id': id, 'name': name}
-                )
-        return
-
-    def delete_user(self, id):
-        pass
-        # TODO
-
-    def add_user_displayname(self, user_id: int, server_id: int, name: str):
-        """Adds user display name to the database
-
-        Args:
-            user_id: user's discord id
-            server_id: discord server id where displayname is used
-            name: the displayname
-        """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
-                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
-                    "ON CONFLICT (user_id,server_id) DO UPDATE " +
-                    "SET displayname=%(displayname)s",
-                    {'user_id': user_id, 'server_id': server_id, 'displayname': name}
-                )
-        return
-
     def get_server(self, server_id=None) -> dict | list[dict] | None:
         """
         Returns all servers if no server_id is provided.
@@ -261,10 +184,11 @@ class Database:
             port=login['port']
         )
 
-    # ---- functions for specific modules
 
-    # -- brotato
-
+class Brotato(Database):
+    """
+    Database class that handles access concerning the brotato module.
+    """
     def get_brotato_char(self, char="") -> list[dict] | None:
         """Returns single char if string provided, all if not
         Args:
@@ -280,8 +204,8 @@ class Database:
                 with conn.cursor() as cur:
                     cur.execute("SELECT char_id,name_en,name_de FROM brotato_chars;")
                     dbresult = cur.fetchall()
-            for tuple in dbresult:
-                result_list.append({'id': tuple[0], 'name_en': tuple[1], 'name_de': tuple[2]})
+            for row in dbresult:
+                result_list.append({'id': row[0], 'name_en': row[1], 'name_de': row[2]})
             if len(result_list) == 0:
                 return None
             return result_list
@@ -313,11 +237,13 @@ class Database:
                 cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);", {'name': char})
         return
 
-    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple], list]:
+    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple], list] | None:
         """Get highscores from database
 
         Args:
             diff: difficulty
+            character: name of the character
+            guild_id: discord server id
 
         Returns:
             tuple[list[tuple],list]: ([(highscore,...),(highscore,...)],[heading1,heading2,...])
@@ -399,9 +325,9 @@ class Database:
                         heading = ["Spieler", "Welle"]
         if result is None:
             return None
-        return (result, heading)
+        return result, heading
 
-    def add_brotato_run(self, char: str, wave: int, danger: int, user_id: str, server_id: int):
+    def add_brotato_run(self, char: str, wave: int, danger: int, user_id: int, server_id: int):
         """Creates new brotato run in the database
 
         Args:
@@ -586,3 +512,69 @@ class File(Database):
                     "INSERT INTO files_tags (file_id,tag_id) VALUES (%(file_id)s,%(tag)s)",
                     {"file_id": file_id, "tag": db_tag[0]}
                 )
+
+
+class User(Database):
+    """
+    Database class for users
+    """
+    def add_user(self, user_id: int, user_name: str):
+        """
+        Allows adding a new user to the database.
+        Updates on conflict.
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
+                    "ON CONFLICT (user_id) DO UPDATE " +
+                    "SET name=%(name)s;",
+                    {'id': user_id, 'name': user_name}
+                )
+
+    def delete_user(self, user_id: str):
+        pass
+        # TODO delete user and remove all associations
+
+    def get_user(self, user_id: int, server_id: int = None) -> dict | None:
+        """
+        Retrieves specified user from the database.
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;", (user_id,))
+                result = cur.fetchone()
+
+        if result is None:
+            return None
+        if server_id == "":
+            return {"id": result[0], "name": result[1]}
+
+        # get server's display name
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT displayname FROM discord_user_displaynames " +
+                    "WHERE user_id=%(userid)s AND server_id=%(server_id)s;",
+                    {'userid': id, 'serverid': server_id}
+                )
+                display_name = cur.fetchone()
+        # if no name found fall back to username
+        if display_name is None:
+            return {"id": result[0], "name": result[1]}
+        return {'id': result[0], 'name': display_name}
+
+    def add_user_display_name(self, user_id: int, server_id: int, name: str):
+        """
+        Adds a user's display name to the database.
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
+                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
+                    "ON CONFLICT (user_id,server_id) DO UPDATE " +
+                    "SET displayname=%(displayname)s",
+                    {'user_id': user_id, 'server_id': server_id, 'displayname': name}
+                )
+        return
