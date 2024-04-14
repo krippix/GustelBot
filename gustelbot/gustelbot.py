@@ -9,8 +9,8 @@ import discord
 from discord.ext import commands
 from discord.ext import tasks
 # internal
-from util import config
-from util import database
+from gustelbot.util import config
+from gustelbot.util import database
 
 
 # Set loglevel, ignoring config until config file works
@@ -76,9 +76,9 @@ def load_extensions(bot):
     logging.info("Loading Extensions.")
 
     # Regular cogs
-    from cogs import magicConchShell
-    from cogs import ping
-    from cogs import timeout
+    from gustelbot.cogs import magicConchShell
+    from gustelbot.cogs import ping
+    from gustelbot.cogs import timeout
     manual_cogs = {
         'magic_conch_shell': magicConchShell.MagicConchShell,
         'ping': ping.Ping,
@@ -86,9 +86,9 @@ def load_extensions(bot):
     }
 
     # cogs using database and config
-    from cogs import brotato
-    from cogs import config_server
-    from cogs import sounds
+    from gustelbot.cogs import brotato
+    from gustelbot.cogs import config_server
+    from gustelbot.cogs import sounds
     manual_cogs_db = {
         'brotato': brotato.Brotato,
         'config_server': config_server.Config_Server,
@@ -113,7 +113,7 @@ def load_extensions(bot):
 
 
 # Launch Bot
-if __name__ == "__main__":
+def start():
     try:
         load_extensions(bot)
         bot.run(settings.get_discord_token())

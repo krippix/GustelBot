@@ -7,7 +7,7 @@ import time
 import discord
 from discord.ext import commands
 # internal
-from util import config
+from gustelbot.util import config
 
 
 class Timeout(commands.Cog):

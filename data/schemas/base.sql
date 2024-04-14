@@ -33,13 +33,13 @@ CREATE TABLE IF NOT EXISTS discord_server_admin_groups(
 
 -- files
 CREATE TABLE IF NOT EXISTS files(
-    file_id BIGINT PRIMARY KEY,
+    file_id BIGSERIAL PRIMARY KEY,
     file_size BIGINT,
     server_id BIGINT,
     uploader_id BIGINT,
     display_name TEXT NOT NULL,
     file_name TEXT NOT NULL,
-    hash TEXT NOT NULL,
+    file_hash TEXT NOT NULL,
     public BOOLEAN,
     FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
     FOREIGN KEY (uploader_id) REFERENCES discord_users (user_id)
@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS files(
 
 -- tags
 CREATE TABLE IF NOT EXISTS tags(
-    tag_id BIGINT PRIMARY KEY,
-    tag_name TEXT NOT NULL
+    tag_id BIGSERIAL PRIMARY KEY,
+    tag_name TEXT NOT NULL UNIQUE
 );
 
 -- files_tags

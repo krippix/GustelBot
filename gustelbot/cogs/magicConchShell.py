@@ -6,8 +6,8 @@ import random
 import discord
 from discord.ext import commands
 # internal
-from bot.util import config
-from bot.cogs import sounds
+from gustelbot.util import config
+from gustelbot.cogs import sounds
 
 
 class MagicConchShell(commands.Cog):

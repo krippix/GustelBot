@@ -5,8 +5,8 @@ import traceback
 import discord
 from discord.ext import commands
 # internal
-from util import config
-from util import database
+from gustelbot.util import config
+from gustelbot.util import database
 
 
 class Config_Server(commands.Cog):
