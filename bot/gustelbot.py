@@ -1,3 +1,6 @@
+"""
+Main entry point for GustelBot
+"""
 # default
 import logging
 import traceback
@@ -18,7 +21,6 @@ settings = config.Config()
 try:
     db = database.Database()
 except Exception:
-    db = None
     logging.critical(traceback.format_exc())
     exit()
 
@@ -31,9 +33,8 @@ intents = discord.Intents.default()
 # Create bot object
 bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=settings.get_debug_guilds())
 
+
 # ----- database maintenance
-
-
 @bot.event
 async def on_ready():
     logging.info(f"Successfully logged in as {bot.user}")
