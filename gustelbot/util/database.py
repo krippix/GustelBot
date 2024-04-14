@@ -429,6 +429,160 @@ class Database:
                 )
 
 
-if __name__ == "__main__":
-    logging.error("This file is not supposed to be executed.")
-    exit()
+class File(Database):
+    """
+    Database class that handles access to files
+    """
+    def add_file(
+            self,
+            tags: list[str],
+            display_name: str,
+            file_size: int,
+            file_name: str,
+            file_hash: str,
+            public: bool,
+            server_id: int,
+            uploader_id: int
+    ) -> int:
+        """
+        Adds file information to the database, this function expects the input data to be correct!
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO files (file_size,server_id,uploader_id,display_name,file_name,file_hash,public) " +
+                    "VALUES (%(size)s,%(server_id)s,%(uploader_id)s,%(display_name)s,%(name)s,%(hash)s,%(public)s) " +
+                    "RETURNING file_id",
+                    {
+                        "size": file_size,
+                        "server_id": server_id,
+                        "uploader_id": uploader_id,
+                        "display_name": display_name,
+                        "name": file_name,
+                        "hash": file_hash,
+                        "public": public
+                    }
+                )
+                file_id = cur.fetchone()[0]
+        if tags:
+            for tag in tags:
+                self.link_tag(file_id, tag)
+        return file_id
+
+    def get_file(self, **kwargs) -> list[tuple[int, int, int, int, str, str, str, bool]]:
+        """
+        Uses kwargs for WHERE LIKE lookup, they are chained with AND operators
+        (file_id, size, server_id, uploader_id, display_name, file_name, hash, public)
+        """
+        if len(kwargs) == 0:
+            with self.connection as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash,public "
+                        "FROM files"
+                    )
+                    return cur.fetchall()
+
+        # Check if provided kwargs are valid use cases
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'files'")
+                columns = [x[0] for x in cur.fetchall()]
+
+        query = ""
+        for key, value in kwargs.items():
+            if key not in columns:
+                raise TypeError(f"Unexpected keyword argument '{key}'")
+            query = File.__build_argument(key, query)
+
+        # build SQL request
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash,public "
+                    "FROM files " + query,
+                    kwargs
+                )
+                return cur.fetchall()
+
+    @staticmethod
+    def __build_argument(keyword: str, query: str = "") -> str:
+        """
+        Creates additional WHERE statements in order for query to be somewhat dynamic
+        """
+        if query:
+            query += f" AND {keyword} = %({keyword})s"
+            return query
+        else:
+            return f"WHERE {keyword} = %({keyword})s"
+
+    def is_visible(self, guild_id: int, file_id: int) -> bool:
+        """
+        Checks if provided file id is visible to the requesting guild/server
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT server_id,public FROM files WHERE file_id=%(file_id)s;",
+                    {"file_id": file_id}
+                )
+                db_result = cur.fetchone()
+        if db_result[1]:
+            return True
+        if db_result[0] == guild_id:
+            return True
+        return False
+
+    def add_tag(self, tag_name: str) -> int:
+        """
+        Creates a new tag in the database, returns the tag id
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO tags (tag_name) VALUES (%(tag_name)s) RETURNING tag_id",
+                    {"tag_name": tag_name}
+                )
+                return cur.fetchone()[0]
+
+    def get_tag(self, identifier: int | str) -> list[tuple[int, str]]:
+        """
+        Gets tag from the database, no parameter for every tag.
+        int -> by id
+        str -> by name
+        """
+        match identifier:
+            case int():
+                query = "SELECT tag_id,tag_name FROM tags WHERE tag_id=%(identifier)s"
+            case str():
+                query = "SELECT tag_id,tag_name FROM tags WHERE tag_name=%(identifier)s"
+            case None:
+                query = "SELECT tag_id,tag_name FROM tags"
+            case _:
+                raise Exception("Tag identifier must be int or string")
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    query,
+                    {"identifier": identifier}
+                )
+                return cur.fetchall()
+
+    def link_tag(self, file_id: int, tag: int | str):
+        """
+        Links tag to file. If both id and name are set id takes priority.
+        Creates tags if they don't exist yet.
+        """
+        if not self.get_file(file_id=file_id):
+            raise Exception("Requested file does not exist!")
+
+        # create tag in db if it doesn't exist already
+        if not (db_tag := self.get_tag(tag)) and isinstance(tag, str):
+            db_tag = (self.add_tag(tag), tag)
+
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO files_tags (file_id,tag_id) VALUES (%(file_id)s,%(tag)s)",
+                    {"file_id": file_id, "tag": db_tag[0]}
+                )
