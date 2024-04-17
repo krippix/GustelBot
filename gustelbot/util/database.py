@@ -21,7 +21,6 @@ class Database:
         self.logger = logging.getLogger(__name__)
         self.settings = config.Config()
         self.__connect()
-        self.check()
 
     # ---- generic functions, multiple modules
 
@@ -157,6 +156,7 @@ class Database:
         schema_folder = self.settings.folders["data"].joinpath("schemas")
 
         # create base schema
+        logging.info("Recreating database schema '%s'", "base.sql")
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(open(schema_folder.joinpath("base.sql"), "r").read())
@@ -543,27 +543,29 @@ class User(Database):
         """
         with self.connection as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;", (user_id,))
+                cur.execute("SELECT user_id,name,uploader FROM discord_users WHERE user_id=%s;", (user_id,))
                 result = cur.fetchone()
 
         if result is None:
             return None
-        if server_id == "":
-            return {"id": result[0], "name": result[1]}
+        if not server_id:
+            return {"id": result[0], "name": result[1], "uploader": result[2]}
 
         # get server's display name
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "SELECT displayname FROM discord_user_displaynames " +
-                    "WHERE user_id=%(userid)s AND server_id=%(server_id)s;",
-                    {'userid': id, 'serverid': server_id}
+                    "WHERE user_id=%(user_id)s AND server_id=%(server_id)s;",
+                    {'user_id': user_id, 'server_id': server_id}
                 )
                 display_name = cur.fetchone()
         # if no name found fall back to username
+        result_dict = {'id': result[0], 'uploader': result[2]}
         if display_name is None:
-            return {"id": result[0], "name": result[1]}
-        return {'id': result[0], 'name': display_name}
+            result_dict['name'] = result[1]
+        result_dict['name'] = display_name
+        return result_dict
 
     def add_user_display_name(self, user_id: int, server_id: int, name: str):
         """

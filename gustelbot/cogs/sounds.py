@@ -25,6 +25,7 @@ class Sounds(commands.Cog):
     def __init__(self, bot: commands.Bot, settings: config.Config):
         self.logger = logging.getLogger(__name__)
         self.bot = bot
+        self.settings = settings
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
@@ -72,7 +73,6 @@ class Sounds(commands.Cog):
         # Disconnect bot from current channel
         logging.debug("<command> - disconnect")
 
-        # This is kinda weird: ctx.voic_client is an object with type: voice_client.VoiceClient
         if ctx.voice_client is None:
             await ctx.respond("I am not connected to any channel.")
             return
@@ -108,6 +108,12 @@ class Sounds(commands.Cog):
         """
         Allows users to upload a new sound to GustelBot
         """
+        db_con = database.User()
+
+        if not (db_con.get_user(ctx.author.id)['uploader'] or self.settings.is_superuser(ctx.author.id)):
+            await ctx.respond("You are not allowed to upload sounds to GustelBot.")
+            return
+
         if not sound_file.content_type.startswith('audio/'):
             await ctx.respond('Failed to upload file: Not a valid audio file')
             return
@@ -142,25 +148,21 @@ class Sounds(commands.Cog):
         file_md5 = filemgr.calculate_md5(tmp_file_path)
         if existing_file := db_con.get_file(file_hash=file_md5):
             # check if the already existing version is available from this server
-            if db_con.is_visible(existing_file[0][0], ctx.author.guild.id):
-                await ctx.respond(f'File {sound_name} already exists as {existing_file[4]}')
+            if db_con.is_visible(file_id=existing_file[0][0], guild_id=ctx.author.guild.id):
+                await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file[0][4]}`')
                 return
             try:
                 self.__create_sound_link(existing_file[0], sound_name, tags, private)
-            except Exception:
+            except Exception as e:
                 self.logger.error(f"Failed to create link for sound '{sound_name}': {traceback.format_exc()}")
-                await ctx.respond('Internal server error')
-            await ctx.respond(f'Sound {sound_name} successfully uploaded to GustelBot')
-            return
-
-        try:
+                raise e
+        else:
             self.__create_sound_file(
                 tmp_file_path, sound_name, tags, private,
                 file_md5, db_con, ctx.guild.id, ctx.author.id
             )
-        except Exception:
-            await ctx.respond('Internal server error')
-            return
+        await ctx.respond(f'Sound {sound_name} successfully uploaded to GustelBot')
+
 
     def __create_sound_file(
             self,
@@ -202,6 +204,7 @@ class Sounds(commands.Cog):
 
     @sound_upload.error
     async def on_sound_upload_error(self, ctx: discord.ApplicationContext, _: discord.DiscordException):
+        logging.error(traceback.format_exc())
         await ctx.respond('Internal server error.')
 
     def __create_sound_link(self, existing_file: tuple, sound_name: str, tags: list[str], private: bool):
@@ -212,7 +215,7 @@ class Sounds(commands.Cog):
     def __choose_sound(
             self, name: str = None,
             folder: pathlib.Path = None,
-            maxlen: int = 0) -> tuple[pathlib.Path, float] | None:
+            maxlen: int = 0) -> pathlib.Path | None:
         """Chooses sound based on provided folder and search string.
 
         Args:

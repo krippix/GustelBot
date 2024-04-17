@@ -20,6 +20,7 @@ logging.basicConfig(encoding='utf-8', level=10)
 settings = config.Config()
 try:
     db = database.Database()
+    db.check()
 except Exception:
     logging.critical(traceback.format_exc())
     exit()
@@ -67,6 +68,17 @@ async def check_guilds():
             if srv['servername'] == guild.name:
                 continue
         db.add_server(server_id=guild.id, name=guild.name)
+
+
+@bot.before_invoke
+async def ensure_user(ctx: commands.Context | discord.ApplicationContext):
+    """
+    Ensures that the calling user is in the database.
+    """
+    logging.debug("Attempting to create user %s", ctx.author.name)
+    db_con = database.User()
+    db_con.add_user(ctx.author.id, ctx.author.name)
+    db_con.add_user_display_name(ctx.author.id, ctx.guild_id, ctx.author.display_name)
 
 
 def load_extensions():

@@ -59,6 +59,12 @@ class Config:
                 os.environ[key] = self.options[key]
 
     @staticmethod
+    def is_superuser(user_id: int):
+        if (super_user := os.environ.get("GUSTELBOT_SUPERUSER")) is None:
+            return False
+        return int(super_user) == user_id
+
+    @staticmethod
     def ensure_folder(folder_path: Path):
         """
         Takes Path to a folder and creates it if it doesn't exist
