@@ -165,6 +165,7 @@ class Database:
         schemas = [x for x in os.listdir(schema_folder) if x != "base.sql" and x.endswith(".sql")]
 
         for schema in schemas:
+            logging.info("Recreating database schema '%s'", schema)
             current_path = schema_folder.joinpath(schema)
             with self.connection as conn:
                 with conn.cursor() as cur:
