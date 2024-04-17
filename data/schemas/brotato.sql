@@ -7,6 +7,9 @@ ALTER TABLE brotato_chars ADD COLUMN IF NOT EXISTS name_de TEXT;
 
 -- brotato_runs
 CREATE TABLE IF NOT EXISTS brotato_runs(
+    user_id BIGINT NOT NULL,
+    server_id BIGINT NOT NULL,
+    char_id INT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES discord_users (user_id),
     FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
     FOREIGN KEY (char_id) REFERENCES brotato_chars (char_id)
