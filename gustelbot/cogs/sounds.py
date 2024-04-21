@@ -2,12 +2,15 @@
 This file implements all commands regarding sounds.
 """
 # default
+from difflib import SequenceMatcher
 import logging
+import math
 import pathlib
 import random
 import string
 import tempfile
 import traceback
+import typing
 # pip
 import discord
 from discord.ext import commands
@@ -34,25 +37,27 @@ class Sounds(commands.Cog):
         """
         Play command, searches for random file if no name provided
         """
+        db_con = database.FileCon()
+
         if not (response := (await voice.is_joinable(ctx)))[0]:
             await ctx.respond(response[1])
             return
         # choose sound to play
         if sound_name == "":
-            sound = self.__choose_sound(maxlen=self.db.get_play_maxlen(ctx.guild.id))
+            sound = self.__choose_sound(ctx.author.id, ctx.guild_id, db_con.get_play_maxlen(ctx.guild.id))
         else:
-            sound = self.__choose_sound(name=sound_name, maxlen=0)
+            sound = self.__choose_sound(ctx.author.id, ctx.guild_id, search_str=sound_name)
 
-        # if still no sound was found, check for matching foldername instead
-        if sound is None:
-            file = filemgr.search_files(filemgr.get_folders(self.SOUND_FOLDER), sound_name)
-            sound = self.__choose_sound(folder=file, maxlen=self.db.get_play_maxlen(ctx.guild.id))
+        # if still no sound was found, check for matching tag instead
+        # TODO: implement retrieval of file by tag
+        #if sound is None:
+        #    if db_con.get_file():
 
         if sound is None:
-            await ctx.respond("No sound found")
+            await ctx.respond("No matching sound found")
             return
-        await Sounds.play_sound(ctx, sound)
-        return
+
+        await Sounds.play_sound(ctx, pathlib.Path(self.SOUND_FOLDER, sound.file_name), sound.display_name)
 
     @discord.slash_command(name="stop", description="Stops playback")
     async def stop(self, ctx: commands.Context | discord.ApplicationContext):
@@ -79,7 +84,7 @@ class Sounds(commands.Cog):
 
         ctx.voice_client.stop()
         await ctx.respond("Disconnecting...")
-        await ctx.voice_client.disconnect()
+        await ctx.voice_client.disconnect(force=False)
 
     sound_group = discord.SlashCommandGroup(name="sound", description="Information and commands regarding sounds")
 
@@ -122,18 +127,26 @@ class Sounds(commands.Cog):
             await ctx.respond('Failed to upload file: Maximum size is 50MB')
             return
 
-        if len(sound_file.filename) > 100:
-            await ctx.respond('Failed to upload file: Maximum filename length is 100 characters')
+        if len(sound_file.filename) > 25:
+            await ctx.respond('Failed to upload file: Maximum filename length is 25 characters')
             return
 
+        if ',' in sound_name:
+            await ctx.respond("The ',' symbols is not allowed in sound names.")
+
         if tags:
-            tags = tags.split(',')
-            tags = [x.strip() for x in tags]
-        db_con = database.File()
+            tag_tup = tags.split(',')
+            for tag in tag_tup:
+                if tag.isdigit():
+                    await ctx.respond("Tags cannot be numbers, some will be ignored.")
+            tag_tup = tuple([x.strip() for x in tag_tup if not x.isdigit()])
+        else:
+            tag_tup = None
+        db_con = database.FileCon()
 
         # check if provided display name is already in use (and visible)
         if file := db_con.get_file(display_name=sound_name):
-            if db_con.is_visible(ctx.guild.id, file[0][0]):
+            if file[0].is_visible(ctx.author.id, ctx.guild.id):
                 await ctx.respond(f'**Error**: The Filename `{sound_name}` is already in use!')
                 return
 
@@ -147,59 +160,48 @@ class Sounds(commands.Cog):
         # calculate hash of file and check db if already exists
         file_md5 = filemgr.calculate_md5(tmp_file_path)
         if existing_file := db_con.get_file(file_hash=file_md5):
+            existing_file = existing_file[0]
             # check if the already existing version is available from this server
-            if db_con.is_visible(file_id=existing_file[0][0], guild_id=ctx.author.guild.id):
-                await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file[0][4]}`')
+            if file[0].is_visible(user_id=ctx.author.id, guild_id=ctx.guild.id):
+                await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file.display_name}`')
                 return
             try:
-                self.__create_sound_link(existing_file[0], sound_name, tags, private)
+                self.__create_sound_link(existing_file, sound_name, tag_tup, private)
             except Exception as e:
                 self.logger.error(f"Failed to create link for sound '{sound_name}': {traceback.format_exc()}")
                 raise e
         else:
             self.__create_sound_file(
-                tmp_file_path, sound_name, tags, private,
-                file_md5, db_con, ctx.guild.id, ctx.author.id
+                db_con,
+                database.File(
+                    size=tmp_file_path.stat().st_size,
+                    guild_id=ctx.guild.id,
+                    user_id=ctx.author.id,
+                    display_name=sound_name,
+                    file_name=tmp_file_path.name,
+                    file_hash=file_md5,
+                    public=(not private),
+                    seconds=math.floor(filemgr.get_sound_length(tmp_file_path)),
+                    tags=tag_tup
+                ),
+                tmp_file_path
             )
         await ctx.respond(f'Sound {sound_name} successfully uploaded to GustelBot')
 
-
-    def __create_sound_file(
-            self,
-            sound_file: pathlib.Path,
-            sound_name: str,
-            tags: list[str],
-            private: bool,
-            md5: str,
-            db_con: database.File,
-            guild_id: int,
-            uploader_id: int
-    ):
+    def __create_sound_file(self, db_con: database.FileCon, file: database.File, source_file: pathlib.Path):
         """
         Establishes a new Sound file in the database and copies it to the folder.
         """
-        file_size = sound_file.stat().st_size
-
         # move file to proper folder
         try:
-            filemgr.move_to_folder(sound_file, self.SOUND_FOLDER)
+            filemgr.move_to_folder(source_file, self.SOUND_FOLDER)
         except (FileNotFoundError, NotADirectoryError):
             logging.error(f'Failed to move file to proper folder: {traceback.format_exc()}')
-
         try:
-            db_con.add_file(
-                tags=tags,
-                display_name=sound_name,
-                file_size=file_size,
-                file_name=sound_file.name,
-                file_hash=md5,
-                public=(not private),
-                server_id=guild_id,
-                uploader_id=uploader_id
-            )
+            db_con.add_file(file)
         except Exception as e:
-            self.logger.error(f'Failed to add file {sound_file.name} to database: {traceback.format_exc()}')
-            pathlib.Path(self.SOUND_FOLDER, sound_file.name).unlink()
+            self.logger.error(f'Failed to add file {source_file.name} to database: {traceback.format_exc()}')
+            pathlib.Path(self.SOUND_FOLDER, source_file.name).unlink()
             raise e
 
     @sound_upload.error
@@ -207,49 +209,61 @@ class Sounds(commands.Cog):
         logging.error(traceback.format_exc())
         await ctx.respond('Internal server error.')
 
-    def __create_sound_link(self, existing_file: tuple, sound_name: str, tags: list[str], private: bool):
+    def __create_sound_link(self, old_file: database.File, sound_name: str, tags: tuple[str] | None, private: bool):
         """
         Creates a link for a file that already exists but was invisible to the user who added it.
         """
 
+    @staticmethod
     def __choose_sound(
-            self, name: str = None,
-            folder: pathlib.Path = None,
-            maxlen: int = 0) -> pathlib.Path | None:
-        """Chooses sound based on provided folder and search string.
-
-        Args:
-            name: keyword to search for. Defaults to random selection.
-            folder: path to folder to search. Defaults to None.
-
-        Returns:
-            returns Path object to sound
+            user_id: int,
+            guild_id: int,
+            max_len: typing.Optional[int] = None,
+            search_str: str = None,
+            tags: list[str] = None
+    ) -> typing.Optional[database.File]:
         """
+        Searches database for fitting sound and returns path to sound file.
+        """
+        db_con = database.FileCon()
+        all_sounds = db_con.get_file()
 
-        if folder is not None:
-            path = folder
-        else:
-            path = self.SOUND_FOLDER
+        # only visible sounds
+        all_sounds = [sound for sound in all_sounds if sound.is_visible(user_id=user_id, guild_id=guild_id)]
 
-        if name is None:
-            return filemgr.get_random_file(path, maxlen)
+        # if max_len is set filter list for that
+        if max_len:
+            all_sounds = [sound for sound in all_sounds if sound.seconds <= max_len]
 
-        # Search for closest match compared to string.
-        sound_files = filemgr.get_files_rec(path)
-        found_sound = filemgr.search_files(sound_files, name)
+        # if tags are provided, filter by the tags
+        if tags:
+            for tag in tags:
+                all_sounds = [sound for sound in all_sounds if tag in sound.tags]
 
-        if found_sound is None:
-            return None
-        # TODO ensure this is actually a playable sound file
-        return found_sound
+        # if search string is provided, rank by likelihood of being a match
+        if search_str:
+            all_sounds = [
+                (sound,
+                 SequenceMatcher(
+                     None,
+                     sound.display_name.lower(),
+                     search_str.lower()
+                 ).ratio()) for sound in all_sounds
+            ]
+            all_sounds = sorted(all_sounds, key=lambda x: x[1], reverse=True)
+        final_choice = None
+        if isinstance(all_sounds[0], tuple):
+            final_choice = all_sounds[0][0] if all_sounds[0][1] >= 0.65 else None
+        return final_choice
 
     @staticmethod
-    async def play_sound(ctx, sound: pathlib.Path(), message=True):
+    async def play_sound(ctx, sound: pathlib.Path, name: str = None):
         """
         Actually playing the sound. This expects the provided file to work!
+        If a name is provided it will be announced.
         """
-        if message:
-            await ctx.respond(f"Playing '{sound.stem}'")
+        if name:
+            await ctx.respond(f"Playing '{name}'")
         await voice.join_channel(ctx, ctx.author.voice.channel)
         await voice.play_sound(ctx, f"{str(sound)}")
 
@@ -263,7 +277,7 @@ class Sounds(commands.Cog):
         """
         if ctx.author.voice and ctx.author.voice.channel != ctx.voice_client.channel:
             return True
-        return await voice.is_joinable(ctx)
+        return (await voice.is_joinable(ctx))[0]
 
 
 if __name__ == "__main__":

@@ -58,7 +58,7 @@ class MagicConchShell(commands.Cog):
         result = random.choice(self.possible_answers)
 
         if await MagicConchShell.can_play(ctx):
-            await sounds.Sounds.play_sound(ctx, result[1], False)
+            await sounds.Sounds.play_sound(ctx, result[1])
         if question:
             message = f"> {str(question)}\n{result[0]}"
         else:

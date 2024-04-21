@@ -33,16 +33,20 @@ def get_random_file(folder: pathlib.Path, max_len: int) -> pathlib.Path:
     files = get_files_rec(folder)
     files_clean = []
     for file in files:
-        try:
-            sound_len = mutagen.File(file).info.length
-            if max_len == 0 or sound_len <= max_len and sound_len != 0:
-                files_clean.append(file)
-        except Exception:
-            logging.warning(f"No length found for {file}")
-            continue
-    if not files_clean:
-        return None
+        sound_len = get_sound_length(file)
+        if sound_len and max_len == 0 or sound_len <= max_len:
+            files_clean.append(file)
     return random.choice(files_clean)
+
+
+def get_sound_length(file: pathlib.Path) -> int | None:
+    """
+    Retrieves the length of a sound file
+    """
+    try:
+        return mutagen.File(file).info.length
+    except AttributeError:
+        return None
 
 
 def get_folders(path: pathlib.Path) -> list[pathlib.Path]:

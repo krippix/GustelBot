@@ -1,4 +1,5 @@
 # default
+from dataclasses import dataclass
 import logging
 import os
 import time
@@ -356,60 +357,82 @@ class Brotato(Database):
                 )
 
 
-class File(Database):
+@dataclass
+class File:
     """
-    Database class that handles access to files
+    Representation of a file entry in the database.
+    size
+    guild_id
+    user_id
+    display_name
+    file_name
+    file_hash
+    public
+    seconds
+    tags
+    id
     """
-    def add_file(
-            self,
-            tags: list[str],
-            display_name: str,
-            file_size: int,
-            file_name: str,
-            file_hash: str,
-            public: bool,
-            server_id: int,
-            uploader_id: int
-    ) -> int:
+    size: int
+    guild_id: int
+    user_id: int
+    display_name: str
+    file_name: str
+    file_hash: str
+    public: bool
+    seconds: int
+    tags: tuple = ()
+    id: int = None
+
+    def is_visible(self, user_id: int, guild_id: int) -> bool:
+        if self.public:
+            return True
+        if self.guild_id == guild_id:
+            return True
+        if self.user_id == user_id:
+            return True
+        return False
+
+
+class FileCon(Database):
+    """
+    Database class that handles access to files and tags
+    """
+    def add_file(self, file: File) -> int:
         """
         Adds file information to the database, this function expects the input data to be correct!
         """
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO files (file_size,server_id,uploader_id,display_name,file_name,file_hash,public) " +
-                    "VALUES (%(size)s,%(server_id)s,%(uploader_id)s,%(display_name)s,%(name)s,%(hash)s,%(public)s) " +
+                    "INSERT INTO files (file_size,server_id,uploader_id,display_name," +
+                    "file_name,file_hash,public,seconds) " +
+                    "VALUES (" +
+                    "%(size)s,%(server_id)s,%(uploader_id)s,%(display_name)s"
+                    ",%(name)s,%(hash)s,%(public)s,%(seconds)s) " +
                     "RETURNING file_id",
                     {
-                        "size": file_size,
-                        "server_id": server_id,
-                        "uploader_id": uploader_id,
-                        "display_name": display_name,
-                        "name": file_name,
-                        "hash": file_hash,
-                        "public": public
+                        "size": file.size,
+                        "server_id": file.guild_id,
+                        "uploader_id": file.user_id,
+                        "display_name": file.display_name,
+                        "name": file.file_name,
+                        "hash": file.file_hash,
+                        "public": file.public,
+                        "seconds": file.seconds
                     }
                 )
                 file_id = cur.fetchone()[0]
-        if tags:
-            for tag in tags:
+        if file.tags:
+            for tag in file.tags:
                 self.link_tag(file_id, tag)
         return file_id
 
-    def get_file(self, **kwargs) -> list[tuple[int, int, int, int, str, str, str, bool]]:
+    def get_file(self, **kwargs) -> list[File]:
         """
+        visible: only return files visible to the user
         Uses kwargs for WHERE LIKE lookup, they are chained with AND operators
         (file_id, size, server_id, uploader_id, display_name, file_name, hash, public)
         """
-        if len(kwargs) == 0:
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash,public "
-                        "FROM files"
-                    )
-                    return cur.fetchall()
-
         # Check if provided kwargs are valid use cases
         with self.connection as conn:
             with conn.cursor() as cur:
@@ -420,17 +443,34 @@ class File(Database):
         for key, value in kwargs.items():
             if key not in columns:
                 raise TypeError(f"Unexpected keyword argument '{key}'")
-            query = File.__build_argument(key, query)
+            query = FileCon.__build_argument(key, query)
 
         # build SQL request
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash,public "
+                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash,public,seconds "
                     "FROM files " + query,
                     kwargs
                 )
-                return cur.fetchall()
+                db_result = cur.fetchall()
+        files = []
+        for row in db_result:
+            files.append(
+                File(
+                    id=row[0],
+                    size=row[1],
+                    guild_id=row[2],
+                    user_id=row[3],
+                    display_name=row[4],
+                    file_name=row[5],
+                    file_hash=row[6],
+                    public=row[7],
+                    seconds=row[8],
+                    tags=()  # TODO fetch tags
+                )
+            )
+        return files
 
     @staticmethod
     def __build_argument(keyword: str, query: str = "") -> str:
@@ -478,15 +518,15 @@ class File(Database):
         int -> by id
         str -> by name
         """
-        match identifier:
-            case int():
-                query = "SELECT tag_id,tag_name FROM tags WHERE tag_id=%(identifier)s"
-            case str():
-                query = "SELECT tag_id,tag_name FROM tags WHERE tag_name=%(identifier)s"
-            case None:
-                query = "SELECT tag_id,tag_name FROM tags"
-            case _:
-                raise Exception("Tag identifier must be int or string")
+        if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
+            query = "SELECT tag_id,tag_name FROM tags WHERE tag_id=%(identifier)s"
+        elif isinstance(identifier, str):
+            query = "SELECT tag_id,tag_name FROM tags WHERE tag_name=%(identifier)s"
+        elif identifier is None:
+            query = "SELECT tag_id,tag_name FROM tags"
+        else:
+            raise Exception("Tag identifier must be int or string")
+
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -506,13 +546,21 @@ class File(Database):
         # create tag in db if it doesn't exist already
         if not (db_tag := self.get_tag(tag)) and isinstance(tag, str):
             db_tag = (self.add_tag(tag), tag)
-
+        # TODO: fix this!
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO files_tags (file_id,tag_id) VALUES (%(file_id)s,%(tag)s)",
                     {"file_id": file_id, "tag": db_tag[0]}
                 )
+
+    def check_files(self):
+        """
+        Checks in the files folder if all database entries exist.
+        If they do not, they are marked as deleted and removed entirely after one week.
+        If they exist and are marked as deleted, the deleted flag is removed.
+        """
+        # TODO actually implement this
 
 
 class User(Database):

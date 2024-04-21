@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS files(
     FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
     FOREIGN KEY (uploader_id) REFERENCES discord_users (user_id)
 );
+ALTER TABLE files ADD COLUMN IF NOT EXISTS seconds BIGINT;
 
 -- tags
 CREATE TABLE IF NOT EXISTS tags(
