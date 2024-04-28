@@ -1,8 +1,6 @@
 """
 This file implements all commands regarding sounds.
 """
-# default
-from difflib import SequenceMatcher
 import logging
 import math
 import pathlib
@@ -11,10 +9,12 @@ import string
 import tempfile
 import traceback
 import typing
-# pip
+from datetime import timedelta
+from difflib import SequenceMatcher
+
 import discord
 from discord.ext import commands
-# internal
+
 from gustelbot.util import config
 from gustelbot.util import database
 from gustelbot.util import filemgr
@@ -186,7 +186,7 @@ class Sounds(commands.Cog):
                 ),
                 tmp_file_path
             )
-        await ctx.respond(f'Sound {sound_name} successfully uploaded to GustelBot')
+        await ctx.respond(f'Sound `{sound_name}` successfully uploaded to GustelBot')
 
     def __create_sound_file(self, db_con: database.FileCon, file: database.File, source_file: pathlib.Path):
         """
@@ -213,6 +213,32 @@ class Sounds(commands.Cog):
         """
         Creates a link for a file that already exists but was invisible to the user who added it.
         """
+
+    @sound_group.command(name='details', description='Returns details about a sound.')
+    @discord.option(name="sound_name", description="Name of the sound.")
+    async def sound_details(self, ctx: discord.ApplicationContext | commands.Context, sound_name: str):
+        """
+        Returns details about a sound, same behaviour as play
+        """
+        sound = self.__choose_sound(ctx.author.id, ctx.guild_id, search_str=sound_name)
+
+        if not sound:
+            await ctx.respond("The sound you specified cannot be found.")
+            return
+
+        details = [
+            f"`name  :` {sound.display_name}",
+            f"`id    :` {sound.id}",
+            f"`length:` {timedelta(seconds=sound.seconds)}",
+            f"`public:` {sound.public}",
+            f"`tags  :` {', '.join(sound.tags)}",
+        ]
+        embed = {
+            "title": "GustelBot Song Details",
+            "description": "\r".join(details)
+        }
+
+        await ctx.respond(embed=discord.Embed.from_dict(embed))
 
     @staticmethod
     def __choose_sound(
