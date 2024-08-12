@@ -3,6 +3,7 @@ import hashlib
 import logging
 import pathlib
 import random
+import shutil
 from difflib import SequenceMatcher
 # pip
 import mutagen
@@ -103,4 +104,4 @@ def move_to_folder(file: pathlib.Path, folder: pathlib.Path):
         raise FileNotFoundError
     if not folder.is_dir():
         raise NotADirectoryError
-    file.rename(f'{folder}/{file.name}')
+    shutil.move(file, f'{folder}/{file.name}')
