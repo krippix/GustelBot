@@ -88,19 +88,20 @@ def load_extensions():
     logging.info("Loading Extensions.")
 
     # Regular cogs
-    from gustelbot.cogs import magicConchShell
     from gustelbot.cogs import ping
+    from gustelbot.cogs import sounds
     from gustelbot.cogs import timeout
+    from gustelbot.cogs import magicConchShell
     from gustelbot.cogs import brotato
     from gustelbot.cogs import config_server
-    from gustelbot.cogs import sounds
+
     manual_cogs = {
-        'magic_conch_shell': magicConchShell.MagicConchShell,
         'ping': ping.Ping,
+        'sounds': sounds.Sounds,
         'timeout': timeout.Timeout,
+        'magic_conch_shell': magicConchShell.MagicConchShell,
         'brotato': brotato.Brotato,
         'config_server': config_server.ConfigServer,
-        'sounds': sounds.Sounds
     }
 
     for cog in manual_cogs:

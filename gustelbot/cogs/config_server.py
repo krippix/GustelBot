@@ -25,7 +25,7 @@ class ConfigServer(commands.Cog):
 
     @config_admin.command(name="addgroup", description="allow group to edit bot config")
     @discord.option(name="group", description="Group to be registered as GustelBot admin")
-    async def admin_addgroup(self, ctx: commands.Context | discord.ApplicationContext, group: discord.Role):
+    async def admin_addgroup(self, ctx: discord.ApplicationContext, group: discord.Role):
         """
         Adds a new group to allowed bot admins within this server
         """
@@ -48,7 +48,7 @@ class ConfigServer(commands.Cog):
 
     @config_admin.command(name="remgroup", description="disallow group from editing bot config")
     @discord.option(name="group", description="Group to be removed from GustelBot admins")
-    async def admin_delgroup(self, ctx: commands.Context | discord.ApplicationContext, group: discord.Role):
+    async def admin_delgroup(self, ctx: discord.ApplicationContext, group: discord.Role):
         """
         Removes a group grom local server admins
         """
@@ -74,7 +74,7 @@ class ConfigServer(commands.Cog):
     @config_play.command(name="maxlength", description="change maximum length when playing random sound.")
     @discord.option(name="seconds", min=0, max=1800, description="Maximum seconds allowed. Zero == unlimited")
     async def play_maxlength(
-        self, ctx: commands.Context | discord.ApplicationContext,
+        self, ctx: discord.ApplicationContext,
         seconds: int
     ):
         """
@@ -94,12 +94,12 @@ class ConfigServer(commands.Cog):
         return
 
     @staticmethod
-    def __is_allowed(ctx: commands.Context):
+    def __is_allowed(ctx: discord.ApplicationContext):
         # Checks if access to command was justified
         if ctx.author == ctx.guild.owner:
             return True
 
     @staticmethod
-    async def __permission_error(ctx: commands.Context | discord.ApplicationContext):
+    async def __permission_error(ctx: discord.ApplicationContext):
         await ctx.respond("You are not allowed to change server settings.")
         return

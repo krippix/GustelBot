@@ -33,7 +33,7 @@ class Sounds(commands.Cog):
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
     @discord.option(name="sound_name", description="Name of the sound, leave empty for random choice", required=False)
-    async def play(self, ctx: commands.Context | discord.ApplicationContext, sound_name: str):
+    async def play(self, ctx: discord.ApplicationContext, sound_name: str):
         """
         Play command, searches for random file if no name provided
         """
@@ -44,14 +44,12 @@ class Sounds(commands.Cog):
             return
         # choose sound to play
         if sound_name == "":
-            sound = self.__choose_sound(ctx.author.id, ctx.guild_id, db_con.get_play_maxlen(ctx.guild.id))
+            sound = Sounds.__choose_sound(ctx.author.id, ctx.guild_id, db_con.get_play_maxlen(ctx.guild.id))
         else:
-            sound = self.__choose_sound(ctx.author.id, ctx.guild_id, search_str=sound_name)
+            sound = Sounds.__choose_sound(ctx.author.id, ctx.guild_id, search_str=sound_name)
 
         # if still no sound was found, check for matching tag instead
         # TODO: implement retrieval of file by tag
-        #if sound is None:
-        #    if db_con.get_file():
 
         if sound is None:
             await ctx.respond("No matching sound found")
@@ -60,7 +58,7 @@ class Sounds(commands.Cog):
         await Sounds.play_sound(ctx, pathlib.Path(self.SOUND_FOLDER, sound.file_name), sound.display_name)
 
     @discord.slash_command(name="stop", description="Stops playback")
-    async def stop(self, ctx: commands.Context | discord.ApplicationContext):
+    async def stop(self, ctx: discord.ApplicationContext):
 
         if ctx.voice_client is None:
             await ctx.respond("I am not connected to any channel.")
@@ -74,7 +72,7 @@ class Sounds(commands.Cog):
         await ctx.respond("⏹️ Playback stopped!")
 
     @discord.slash_command(name="disconnect", description="Disconnects bot from channel.")
-    async def disconnect(self, ctx: commands.Context | discord.ApplicationContext):
+    async def disconnect(self, ctx: discord.ApplicationContext):
         # Disconnect bot from current channel
         logging.debug("<command> - disconnect")
 
@@ -89,7 +87,7 @@ class Sounds(commands.Cog):
     sound_group = discord.SlashCommandGroup(name="sound", description="Information and commands regarding sounds")
 
     @sound_group.command(name="list", description="Lists all sounds available")
-    async def sound_list(self, ctx: commands.Context | discord.ApplicationContext):
+    async def sound_list(self, ctx: discord.ApplicationContext):
         """
         Returns Embed that contains all sounds available
         """
@@ -104,7 +102,7 @@ class Sounds(commands.Cog):
     @discord.option(name="tags", description="Comma seperated list of tags to apply", required=False)
     @discord.option(name="private", description="Only show sound on this server", default=False, required=False)
     async def sound_upload(
-            self, ctx: commands.Context | discord.ApplicationContext,
+            self, ctx: discord.ApplicationContext,
             sound_file: discord.Attachment,
             sound_name: str,
             tags: str,
@@ -146,7 +144,7 @@ class Sounds(commands.Cog):
 
         # check if provided display name is already in use (and visible)
         if file := db_con.get_file(display_name=sound_name):
-            if file[0].is_visible(ctx.author.id, ctx.guild.id):
+            if file and file[0].is_visible(ctx.author.id, ctx.guild.id):
                 await ctx.respond(f'**Error**: The Filename `{sound_name}` is already in use!')
                 return
 
@@ -162,7 +160,7 @@ class Sounds(commands.Cog):
         if existing_file := db_con.get_file(file_hash=file_md5):
             existing_file = existing_file[0]
             # check if the already existing version is available from this server
-            if file[0].is_visible(user_id=ctx.author.id, guild_id=ctx.guild.id):
+            if file and file[0].is_visible(user_id=ctx.author.id, guild_id=ctx.guild.id):
                 await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file.display_name}`')
                 return
             try:
@@ -216,7 +214,7 @@ class Sounds(commands.Cog):
 
     @sound_group.command(name='details', description='Returns details about a sound.')
     @discord.option(name="sound_name", description="Name of the sound.")
-    async def sound_details(self, ctx: discord.ApplicationContext | commands.Context, sound_name: str):
+    async def sound_details(self, ctx: discord.ApplicationContext, sound_name: str):
         """
         Returns details about a sound, same behaviour as play
         """
@@ -290,11 +288,14 @@ class Sounds(commands.Cog):
         """
         if name:
             await ctx.respond(f"Playing '{name}'")
+        if not sound.exists():
+            await ctx.respond("Error: The specified sound does not exist.")
+            return
         await voice.join_channel(ctx, ctx.author.voice.channel)
         await voice.play_sound(ctx, f"{str(sound)}")
 
     @staticmethod
-    async def join_preparation(ctx: commands.Context | discord.ApplicationContext) -> bool:
+    async def join_preparation(ctx: discord.ApplicationContext) -> bool:
         """Checks if channel has to be joined, returns False if no or not possible.
         This function also sends a reply to notify if joining was not possible.
 

@@ -6,7 +6,7 @@ from discord.ext import commands
 # internal
 
 
-async def is_joinable(ctx: commands.Context) -> tuple[bool, str | None]:
+async def is_joinable(ctx: discord.ApplicationContext) -> tuple[bool, str | None]:
     """
     Checks if bot can join the channel of the context author
     """
@@ -21,7 +21,9 @@ async def is_joinable(ctx: commands.Context) -> tuple[bool, str | None]:
 
 
 async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
-    '''Joins channel, this doesen't check if its possible!'''
+    """
+    Joins voice channel, handles switching if needed.
+    """
 
     # if bot is already in a channel, disconnect
     if ctx.voice_client is not None:
@@ -38,7 +40,9 @@ async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
 
 
 async def play_sound(ctx: commands.context, sound):
-    '''Plays sound in current channel'''
+    """
+    Plays sound in current voice channel.
+    """
     if ctx.voice_client.is_playing():
         ctx.voice_client.stop()
 

@@ -21,6 +21,7 @@ class Database:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.settings = config.Config()
+        logging.info("Connecting to database...")
         self.__connect()
 
     # ---- generic functions, multiple modules

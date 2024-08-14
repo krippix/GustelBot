@@ -27,7 +27,7 @@ class Brotato(commands.Cog):
     @brotato.command(name="highscore", description="Shows 20 best runs")
     @discord.option(name="difficulty", description="Difficulty to show", min_value=0, max_value=5, required=False)
     @discord.option(name="character", description="Name of Character who's runs to show", required=False)
-    async def highscore(self, ctx: commands.Context | discord.ApplicationContext, difficulty: int, character: str):
+    async def highscore(self, ctx: discord.ApplicationContext, difficulty: int, character: str):
         """Displays highscores of the current server.
 
         Args:
@@ -63,7 +63,7 @@ class Brotato(commands.Cog):
     @discord.option(name="danger", description="Danger level of played run")
     @discord.option(name="user", description="User who achieved that run (optional)", required=False)
     async def add_run(
-        self, ctx: commands.Context | discord.ApplicationContext,
+        self, ctx: discord.ApplicationContext,
         char: str,
         wave: int,
         danger: int,
@@ -87,7 +87,7 @@ class Brotato(commands.Cog):
 
     @brotato_add.command(name="char", description="add character")
     @discord.option(name="char", description="Character to add")
-    async def add_char(self, ctx: commands.Context | discord.ApplicationContext, char: str):
+    async def add_char(self, ctx: discord.ApplicationContext, char: str):
         db_con = database.Brotato()
 
         db_char = db_con.get_brotato_char(char)
@@ -102,7 +102,7 @@ class Brotato(commands.Cog):
 
     # helper functions
     @staticmethod
-    def __ensure_server(ctx: commands.Context):
+    def __ensure_server(ctx: discord.ApplicationContext):
         """Makes sure the context server is part of the database
         Args:
             ctx: command context
@@ -113,7 +113,7 @@ class Brotato(commands.Cog):
         db_con.add_server(ctx.guild.id, ctx.guild.name)
 
     @staticmethod
-    def __ensure_user(ctx: commands.Context, user: discord.Member):
+    def __ensure_user(ctx: discord.ApplicationContext, user: discord.Member):
         """Makes sure mentioned user is part of the database
         Args:
             ctx: _description_
