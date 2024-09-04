@@ -91,8 +91,10 @@ class Sounds(commands.Cog):
         """
         Returns Embed that contains all sounds available
         """
+        db_con = database.FileCon()
+        all_files = [x.display_name for x in db_con.get_file()]
         result_dict = {
-            "fields": [{"name": "Amogus", "value": "\r".join(["yellow", "blue", "green", "red"])}],
+            "fields": [{"name": "All available files", "value": "\r".join(all_files)}],
         }
         await ctx.respond(embed=discord.Embed.from_dict(result_dict))
 
@@ -100,13 +102,11 @@ class Sounds(commands.Cog):
     @discord.option(name="sound_file", type=discord.Attachment, description="Sound file to upload.")
     @discord.option(name="sound_name", description="Name of the sound.")
     @discord.option(name="tags", description="Comma seperated list of tags to apply", required=False)
-    @discord.option(name="private", description="Only show sound on this server", default=False, required=False)
     async def sound_upload(
             self, ctx: discord.ApplicationContext,
             sound_file: discord.Attachment,
             sound_name: str,
-            tags: str,
-            private: bool
+            tags: str
     ):
         """
         Allows users to upload a new sound to GustelBot
@@ -130,23 +130,22 @@ class Sounds(commands.Cog):
             return
 
         if ',' in sound_name:
-            await ctx.respond("The ',' symbols is not allowed in sound names.")
+            await ctx.respond("The ',' symbol is not allowed in sound names.")
 
         if tags:
             tag_tup = tags.split(',')
             for tag in tag_tup:
                 if tag.isdigit():
                     await ctx.respond("Tags cannot be numbers, some will be ignored.")
-            tag_tup = tuple([x.strip() for x in tag_tup if not x.isdigit()])
+            tag_tup = tuple([x.strip() for x in tag_tup if not x.isdigit() and x])
         else:
             tag_tup = None
         db_con = database.FileCon()
 
         # check if provided display name is already in use (and visible)
         if file := db_con.get_file(display_name=sound_name):
-            if file and file[0].is_visible(ctx.author.id, ctx.guild.id):
-                await ctx.respond(f'**Error**: The Filename `{sound_name}` is already in use!')
-                return
+            await ctx.respond(f'**Error**: The Filename `{sound_name}` is already in use!')
+            return
 
         # save file to tmp and attach random string to provided name
         await ctx.respond('Uploading sound to GustelBot...')
@@ -159,31 +158,25 @@ class Sounds(commands.Cog):
         file_md5 = filemgr.calculate_md5(tmp_file_path)
         if existing_file := db_con.get_file(file_hash=file_md5):
             existing_file = existing_file[0]
-            # check if the already existing version is available from this server
-            if file and file[0].is_visible(user_id=ctx.author.id, guild_id=ctx.guild.id):
-                await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file.display_name}`')
-                return
-            try:
-                self.__create_sound_link(existing_file, sound_name, tag_tup, private)
-            except Exception as e:
-                self.logger.error(f"Failed to create link for sound '{sound_name}': {traceback.format_exc()}")
-                raise e
-        else:
-            self.__create_sound_file(
-                db_con,
-                database.File(
-                    size=tmp_file_path.stat().st_size,
-                    guild_id=ctx.guild.id,
-                    user_id=ctx.author.id,
-                    display_name=sound_name,
-                    file_name=tmp_file_path.name,
-                    file_hash=file_md5,
-                    public=(not private),
-                    seconds=math.floor(filemgr.get_sound_length(tmp_file_path)),
-                    tags=tag_tup
-                ),
-                tmp_file_path
-            )
+            await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file.display_name}`')
+            return
+
+        # create new file
+        self.__create_sound_file(
+            db_con,
+            database.File(
+                size=tmp_file_path.stat().st_size,
+                guild_id=ctx.guild.id,
+                user_id=ctx.author.id,
+                display_name=sound_name,
+                file_name=tmp_file_path.name,
+                file_hash=file_md5,
+                public=(not private),
+                seconds=math.floor(filemgr.get_sound_length(tmp_file_path)),
+                tags=tag_tup
+            ),
+            tmp_file_path
+        )
         await ctx.respond(f'Sound `{sound_name}` successfully uploaded to GustelBot')
 
     def __create_sound_file(self, db_con: database.FileCon, file: database.File, source_file: pathlib.Path):
@@ -206,11 +199,6 @@ class Sounds(commands.Cog):
     async def on_sound_upload_error(self, ctx: discord.ApplicationContext, _: discord.DiscordException):
         logging.error(traceback.format_exc())
         await ctx.respond('Internal server error.')
-
-    def __create_sound_link(self, old_file: database.File, sound_name: str, tags: tuple[str] | None, private: bool):
-        """
-        Creates a link for a file that already exists but was invisible to the user who added it.
-        """
 
     @sound_group.command(name='details', description='Returns details about a sound.')
     @discord.option(name="sound_name", description="Name of the sound.")
@@ -251,9 +239,6 @@ class Sounds(commands.Cog):
         """
         db_con = database.FileCon()
         all_sounds = db_con.get_file()
-
-        # only visible sounds
-        all_sounds = [sound for sound in all_sounds if sound.is_visible(user_id=user_id, guild_id=guild_id)]
 
         # if max_len is set filter list for that
         if max_len:
