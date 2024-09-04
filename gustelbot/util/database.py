@@ -384,15 +384,6 @@ class File:
     tags: tuple = ()
     id: int = None
 
-    def is_visible(self, user_id: int, guild_id: int) -> bool:
-        if self.public:
-            return True
-        if self.guild_id == guild_id:
-            return True
-        if self.user_id == user_id:
-            return True
-        return False
-
 
 class FileCon(Database):
     """
@@ -483,23 +474,6 @@ class FileCon(Database):
             return query
         else:
             return f"WHERE {keyword} = %({keyword})s"
-
-    def is_visible(self, guild_id: int, file_id: int) -> bool:
-        """
-        Checks if provided file id is visible to the requesting guild/server
-        """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT server_id,public FROM files WHERE file_id=%(file_id)s;",
-                    {"file_id": file_id}
-                )
-                db_result = cur.fetchone()
-        if db_result[1]:
-            return True
-        if db_result[0] == guild_id:
-            return True
-        return False
 
     def add_tag(self, tag_name: str) -> int:
         """
