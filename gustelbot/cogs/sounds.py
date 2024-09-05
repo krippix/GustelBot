@@ -171,7 +171,6 @@ class Sounds(commands.Cog):
                 display_name=sound_name,
                 file_name=tmp_file_path.name,
                 file_hash=file_md5,
-                public=(not private),
                 seconds=math.floor(filemgr.get_sound_length(tmp_file_path)),
                 tags=tag_tup
             ),

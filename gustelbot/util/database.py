@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import logging
 import os
 import time
+import discord
 # pip
 import psycopg2
 from psycopg2 import extensions
@@ -78,7 +79,7 @@ class Database:
                     "INSERT INTO discord_servers (server_id,servername) " +
                     "VALUES (%(server_id)s,%(name)s) " +
                     "ON CONFLICT (server_id) DO UPDATE " +
-                    "SET servername=%(name)s;",
+                    "SET servername = %(name)s;",
                     {'server_id': server_id, 'name': name}
                 )
         return
@@ -90,8 +91,7 @@ class Database:
                     "SELECT group_name FROM discord_server_admin_groups WHERE server_id=%(server_id)s",
                     {'server_id': server_id}
                 )
-                dbresult = cur.fetchall()
-        return [x[0] for x in dbresult]
+        return [x[0] for x in cur.fetchall()]
 
     def add_admin_group(self, server_id: int, group_name: str) -> int:
         existing_groups = self.get_admin_groups(server_id)
@@ -368,7 +368,6 @@ class File:
     display_name
     file_name
     file_hash
-    public
     seconds
     tags
     id
@@ -379,7 +378,6 @@ class File:
     display_name: str
     file_name: str
     file_hash: str
-    public: bool
     seconds: int
     tags: tuple = ()
     id: int = None
@@ -397,10 +395,10 @@ class FileCon(Database):
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO files (file_size,server_id,uploader_id,display_name," +
-                    "file_name,file_hash,public,seconds) " +
+                    "file_name,file_hash,seconds) " +
                     "VALUES (" +
                     "%(size)s,%(server_id)s,%(uploader_id)s,%(display_name)s"
-                    ",%(name)s,%(hash)s,%(public)s,%(seconds)s) " +
+                    ",%(name)s,%(hash)s,%(seconds)s) " +
                     "RETURNING file_id",
                     {
                         "size": file.size,
@@ -409,7 +407,6 @@ class FileCon(Database):
                         "display_name": file.display_name,
                         "name": file.file_name,
                         "hash": file.file_hash,
-                        "public": file.public,
                         "seconds": file.seconds
                     }
                 )
@@ -441,8 +438,8 @@ class FileCon(Database):
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash,public,seconds "
-                    "FROM files " + query,
+                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash, "
+                    "seconds FROM files " + query,
                     kwargs
                 )
                 db_result = cur.fetchall()
@@ -457,8 +454,7 @@ class FileCon(Database):
                     display_name=row[4],
                     file_name=row[5],
                     file_hash=row[6],
-                    public=row[7],
-                    seconds=row[8],
+                    seconds=row[7],
                     tags=()  # TODO fetch tags
                 )
             )
@@ -552,7 +548,7 @@ class User(Database):
                 cur.execute(
                     "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
                     "ON CONFLICT (user_id) DO UPDATE " +
-                    "SET name=%(name)s;",
+                    "SET name = %(name)s;",
                     {'id': user_id, 'name': user_name}
                 )
 
@@ -600,7 +596,23 @@ class User(Database):
                     "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
                     "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
                     "ON CONFLICT (user_id,server_id) DO UPDATE " +
-                    "SET displayname=%(displayname)s",
+                    "SET displayname = %(displayname)s",
                     {'user_id': user_id, 'server_id': server_id, 'displayname': name}
                 )
-        return
+
+    def user_ensure(self, user: discord.Member):
+        """
+        Creates user if they do not exist yet.
+        """
+        if not self.get_user(user_id=user.id):
+            self.add_user(user_id=user.id, user_name=user.name)
+            self.add_user_display_name(user_id=user.id, server_id=user.guild.id, name=user.name)
+
+    def user_set_uploader(self, user: discord.Member, uploader: bool):
+        self.user_ensure(user)
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "update discord_users set uploader = %(status)s WHERE user_id = %(id)s;",
+                    {'id': user.id, 'status': uploader}
+                )

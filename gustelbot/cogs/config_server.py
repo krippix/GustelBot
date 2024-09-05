@@ -93,6 +93,27 @@ class ConfigServer(commands.Cog):
         await ctx.respond(f"Max length of randomly chosen tracks set to {seconds} seconds.")
         return
 
+    config_upload = config.create_subgroup("upload", "Configure upload command")
+
+    @config_upload.command(name="setuploader", description="Allow user to upload audio-files to GustelBot")
+    @discord.option(name="user", description="User to allow uploading of audio-files to GustelBot")
+    @discord.option(name="uploader", description="Weather or not the user is allowed to upload files")
+    async def upload_setuploader(self, ctx: discord.ApplicationContext, user: discord.Member, uploader: bool):
+        if not await ctx.bot.is_owner(ctx.author):
+            await ConfigServer.__permission_error(ctx, 'global')
+            return
+        db_con = database.User()
+        try:
+            db_con.user_set_uploader(user, uploader)
+        except Exception as e:
+            await ctx.respond(f"Error: Failed to set user")
+            logging.error(e)
+            return
+        if uploader:
+            await ctx.respond(f'`{user.display_name}` is allowed to upload files to GustelBot!')
+        else:
+            await ctx.respond(f'`{user.display_name}` is **not** allowed to upload files to GustelBot!')
+
     @staticmethod
     def __is_allowed(ctx: discord.ApplicationContext):
         # Checks if access to command was justified
@@ -100,6 +121,6 @@ class ConfigServer(commands.Cog):
             return True
 
     @staticmethod
-    async def __permission_error(ctx: discord.ApplicationContext):
-        await ctx.respond("You are not allowed to change server settings.")
+    async def __permission_error(ctx: discord.ApplicationContext, scope: str = 'server'):
+        await ctx.respond(f"You are not allowed to change {scope} settings.")
         return
