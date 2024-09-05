@@ -6,21 +6,24 @@ from discord.ext import commands
 # internal
 
 
-async def is_joinable(ctx: commands.context) -> bool:
-    # Check if author's channel is valid
-    if ctx.author.voice.channel is None:
-        await ctx.respond("You have to join a channel to use this command.")
-        return False
-    # Check if Channel is full
-    if ctx.author.voice.channel.user_limit != 0:
-        if ctx.author.voice.channel.user_limit == len(ctx.author.channel.members):
-            await ctx.respond("Channel is already full.")
-            return False
-    return True
+async def is_joinable(ctx: discord.ApplicationContext) -> tuple[bool, str | None]:
+    """
+    Checks if bot can join the channel of the context author
+    """
+    if ctx.author.voice is None:
+        return False, "You are not in a voice channel!"
+
+    if not ctx.author.voice.channel.user_limit:
+        return True, None
+
+    if ctx.author.voice.channel.user_limit == len(ctx.author.voice.channel.members):
+        return False, "Channel is already full!"
 
 
 async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
-    '''Joins channel, this doesen't check if its possible!'''
+    """
+    Joins voice channel, handles switching if needed.
+    """
 
     # if bot is already in a channel, disconnect
     if ctx.voice_client is not None:
@@ -37,7 +40,9 @@ async def join_channel(ctx: commands.context, channel: discord.VoiceChannel):
 
 
 async def play_sound(ctx: commands.context, sound):
-    '''Plays sound in current channel'''
+    """
+    Plays sound in current voice channel.
+    """
     if ctx.voice_client.is_playing():
         ctx.voice_client.stop()
 

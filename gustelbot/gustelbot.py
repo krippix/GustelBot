@@ -1,13 +1,18 @@
+"""
+Main entry point for GustelBot
+"""
 # default
 import logging
 import traceback
+import datetime
+
 # pip
 import discord
 from discord.ext import commands
 from discord.ext import tasks
 # internal
-from util import config
-from util import database
+from gustelbot.util import config
+from gustelbot.util import database
 
 
 # Set loglevel, ignoring config until config file works
@@ -17,8 +22,8 @@ logging.basicConfig(encoding='utf-8', level=10)
 settings = config.Config()
 try:
     db = database.Database()
+    db.check()
 except Exception:
-    db = None
     logging.critical(traceback.format_exc())
     exit()
 
@@ -31,9 +36,8 @@ intents = discord.Intents.default()
 # Create bot object
 bot = commands.Bot(case_insensitive=True, intents=intents, debug_guilds=settings.get_debug_guilds())
 
+
 # ----- database maintenance
-
-
 @bot.event
 async def on_ready():
     logging.info(f"Successfully logged in as {bot.user}")
@@ -68,53 +72,54 @@ async def check_guilds():
         db.add_server(server_id=guild.id, name=guild.name)
 
 
-def load_extensions(bot):
+@bot.before_invoke
+async def ensure_user(ctx: commands.Context | discord.ApplicationContext):
+    """
+    Ensures that the calling user is in the database.
+    """
+    logging.debug("Attempting to create user %s", ctx.author.name)
+    db_con = database.User()
+    db_con.add_user(ctx.author.id, ctx.author.name)
+    db_con.add_user_display_name(ctx.author.id, ctx.guild_id, ctx.author.display_name)
+
+
+def load_extensions():
     """
     Loads extensions for bot. Manual cogs have to be imported as well.
     """
     logging.info("Loading Extensions.")
 
     # Regular cogs
-    from cogs import magischeMiesmuschel
-    from cogs import ping
-    from cogs import timeout
+    from gustelbot.cogs import ping
+    from gustelbot.cogs import sounds
+    from gustelbot.cogs import timeout
+    from gustelbot.cogs import magicConchShell
+    from gustelbot.cogs import brotato
+    from gustelbot.cogs import config_server
+
     manual_cogs = {
-        'magischeMiesmuschel': magischeMiesmuschel.MagischeMiesmuschel,
         'ping': ping.Ping,
-        'timeout': timeout.Timeout
+        'sounds': sounds.Sounds,
+        'timeout': timeout.Timeout,
+        'magic_conch_shell': magicConchShell.MagicConchShell,
+        'brotato': brotato.Brotato,
+        'config_server': config_server.ConfigServer,
     }
 
-    # cogs using database and config
-    from cogs import brotato
-    from cogs import config_server
-    from cogs import sounds
-    manual_cogs_db = {
-        'brotato': brotato.Brotato,
-        'config_server': config_server.Config_Server,
-        'sounds': sounds.Sounds
-    }
     for cog in manual_cogs:
         try:
             logging.debug(f"Attempting to import {cog}")
             bot.add_cog(manual_cogs[cog](bot, settings))
             logging.info(f"Loaded Module {cog}.")
-        except Exception as e:
-            logging.error(f"Failed to load '{cog}': {e}")
-
-    for cog in manual_cogs_db:
-        try:
-            logging.debug(f"Attempting to import {cog}")
-            bot.add_cog(manual_cogs_db[cog](bot, settings, db))
-            logging.info(f"Loaded Module {cog}.")
-        except Exception as e:
-            logging.error(f"Failed to load '{cog}': {type(e)}")
+        except Exception:
+            logging.error(f"Failed to load '{cog}': {traceback.format_exc()}")
     logging.info("Finished loading Modules.")
 
 
 # Launch Bot
-if __name__ == "__main__":
+def start():
     try:
-        load_extensions(bot)
+        load_extensions()
         bot.run(settings.get_discord_token())
     except Exception:
         logging.critical(f"Failed to start bot: {traceback.format_exc()}")

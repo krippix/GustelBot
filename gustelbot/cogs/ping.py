@@ -4,7 +4,7 @@ import logging
 import discord
 from discord.ext import commands
 # internal
-from util import config
+from gustelbot.util import config
 
 
 class Ping(commands.Cog):
@@ -14,6 +14,5 @@ class Ping(commands.Cog):
         self.bot = bot
 
     @discord.slash_command(name="ping", description="Replies with bot's latency.")
-    async def ping(self, ctx: commands.context):
+    async def ping(self, ctx: discord.ApplicationContext):
         await ctx.respond(f"Latency: {int(self.bot.latency * 1000)}ms")
-        return

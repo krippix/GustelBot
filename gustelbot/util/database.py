@@ -1,7 +1,9 @@
 # default
+from dataclasses import dataclass
 import logging
 import os
 import time
+import discord
 # pip
 import psycopg2
 from psycopg2 import extensions
@@ -20,8 +22,8 @@ class Database:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.settings = config.Config()
+        logging.info("Connecting to database...")
         self.__connect()
-        self.check()
 
     # ---- generic functions, multiple modules
 
@@ -30,83 +32,6 @@ class Database:
         self.__ensure_tables()
 
     # -- get/set/add/delete ----
-
-    def get_user(self, id: str, server_id="") -> dict | None:
-        """Returns user with the provided id
-
-        Args:
-            id: user's discord id
-            server_id: context discord server if empty returns username
-
-        Returns:
-            json: {id,name}
-        """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT user_id,name FROM discord_users WHERE user_id=%s;", (id,))
-                result = cur.fetchone()
-
-        if result is None:
-            return None
-        if server_id == "":
-            return {"id": result[0], "name": result[1]}
-
-        # get server's display name
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT displayname FROM discord_user_displaynames " +
-                    "WHERE user_id=%(userid)s AND server_id=%(serverid)s;",
-                    {'userid': id, 'serverid': server_id}
-                )
-                displayname = cur.fetchone()
-        # if no name found fall back to username
-        if displayname is None:
-            return {"id": result[0], "name": result[1]}
-        return {'id': result[0], 'name': displayname}
-
-    def add_user(self, id: int, name: str):
-        """Add a user to the database
-
-        Args:
-            id: discord user id
-            name: discord username
-            server: server id where user is beeing added from
-            displayname: servers displayname
-        """
-        with self.connection as conn:
-            # add user to db
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
-                    "ON CONFLICT (user_id) DO UPDATE " +
-                    "SET name=%(name)s;",
-                    {'id': id, 'name': name}
-                )
-        return
-
-    def delete_user(self, id):
-        pass
-        # TODO
-
-    def add_user_displayname(self, user_id: int, server_id: int, name: str):
-        """Adds user display name to the database
-
-        Args:
-            user_id: user's discord id
-            server_id: discord server id where displayname is used
-            name: the displayname
-        """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
-                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
-                    "ON CONFLICT (user_id,server_id) DO UPDATE " +
-                    "SET displayname=%(displayname)s",
-                    {'user_id': user_id, 'server_id': server_id, 'displayname': name}
-                )
-        return
 
     def get_server(self, server_id=None) -> dict | list[dict] | None:
         """
@@ -154,7 +79,7 @@ class Database:
                     "INSERT INTO discord_servers (server_id,servername) " +
                     "VALUES (%(server_id)s,%(name)s) " +
                     "ON CONFLICT (server_id) DO UPDATE " +
-                    "SET servername=%(name)s;",
+                    "SET servername = %(name)s;",
                     {'server_id': server_id, 'name': name}
                 )
         return
@@ -166,8 +91,7 @@ class Database:
                     "SELECT group_name FROM discord_server_admin_groups WHERE server_id=%(server_id)s",
                     {'server_id': server_id}
                 )
-                dbresult = cur.fetchall()
-        return [x[0] for x in dbresult]
+        return [x[0] for x in cur.fetchall()]
 
     def add_admin_group(self, server_id: int, group_name: str) -> int:
         existing_groups = self.get_admin_groups(server_id)
@@ -234,6 +158,7 @@ class Database:
         schema_folder = self.settings.folders["data"].joinpath("schemas")
 
         # create base schema
+        logging.info("Recreating database schema '%s'", "base.sql")
         with self.connection as conn:
             with conn.cursor() as cur:
                 cur.execute(open(schema_folder.joinpath("base.sql"), "r").read())
@@ -242,6 +167,7 @@ class Database:
         schemas = [x for x in os.listdir(schema_folder) if x != "base.sql" and x.endswith(".sql")]
 
         for schema in schemas:
+            logging.info("Recreating database schema '%s'", schema)
             current_path = schema_folder.joinpath(schema)
             with self.connection as conn:
                 with conn.cursor() as cur:
@@ -261,10 +187,11 @@ class Database:
             port=login['port']
         )
 
-    # ---- functions for specific modules
 
-    # -- brotato
-
+class Brotato(Database):
+    """
+    Database class that handles access concerning the brotato module.
+    """
     def get_brotato_char(self, char="") -> list[dict] | None:
         """Returns single char if string provided, all if not
         Args:
@@ -280,8 +207,8 @@ class Database:
                 with conn.cursor() as cur:
                     cur.execute("SELECT char_id,name_en,name_de FROM brotato_chars;")
                     dbresult = cur.fetchall()
-            for tuple in dbresult:
-                result_list.append({'id': tuple[0], 'name_en': tuple[1], 'name_de': tuple[2]})
+            for row in dbresult:
+                result_list.append({'id': row[0], 'name_en': row[1], 'name_de': row[2]})
             if len(result_list) == 0:
                 return None
             return result_list
@@ -313,11 +240,13 @@ class Database:
                 cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);", {'name': char})
         return
 
-    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple], list]:
+    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple], list] | None:
         """Get highscores from database
 
         Args:
             diff: difficulty
+            character: name of the character
+            guild_id: discord server id
 
         Returns:
             tuple[list[tuple],list]: ([(highscore,...),(highscore,...)],[heading1,heading2,...])
@@ -399,9 +328,9 @@ class Database:
                         heading = ["Spieler", "Welle"]
         if result is None:
             return None
-        return (result, heading)
+        return result, heading
 
-    def add_brotato_run(self, char: str, wave: int, danger: int, user_id: str, server_id: int):
+    def add_brotato_run(self, char: str, wave: int, danger: int, user_id: int, server_id: int):
         """Creates new brotato run in the database
 
         Args:
@@ -429,6 +358,261 @@ class Database:
                 )
 
 
-if __name__ == "__main__":
-    logging.error("This file is not supposed to be executed.")
-    exit()
+@dataclass
+class File:
+    """
+    Representation of a file entry in the database.
+    size
+    guild_id
+    user_id
+    display_name
+    file_name
+    file_hash
+    seconds
+    tags
+    id
+    """
+    size: int
+    guild_id: int
+    user_id: int
+    display_name: str
+    file_name: str
+    file_hash: str
+    seconds: int
+    tags: tuple = ()
+    id: int = None
+
+
+class FileCon(Database):
+    """
+    Database class that handles access to files and tags
+    """
+    def add_file(self, file: File) -> int:
+        """
+        Adds file information to the database, this function expects the input data to be correct!
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO files (file_size,server_id,uploader_id,display_name," +
+                    "file_name,file_hash,seconds) " +
+                    "VALUES (" +
+                    "%(size)s,%(server_id)s,%(uploader_id)s,%(display_name)s"
+                    ",%(name)s,%(hash)s,%(seconds)s) " +
+                    "RETURNING file_id",
+                    {
+                        "size": file.size,
+                        "server_id": file.guild_id,
+                        "uploader_id": file.user_id,
+                        "display_name": file.display_name,
+                        "name": file.file_name,
+                        "hash": file.file_hash,
+                        "seconds": file.seconds
+                    }
+                )
+                file_id = cur.fetchone()[0]
+        if file.tags:
+            for tag in file.tags:
+                self.link_tag(file_id, tag)
+        return file_id
+
+    def get_file(self, **kwargs) -> list[File]:
+        """
+        visible: only return files visible to the user
+        Uses kwargs for WHERE LIKE lookup, they are chained with AND operators
+        (file_id, size, server_id, uploader_id, display_name, file_name, hash, public)
+        """
+        # Check if provided kwargs are valid use cases
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'files'")
+                columns = [x[0] for x in cur.fetchall()]
+
+        query = ""
+        for key, value in kwargs.items():
+            if key not in columns:
+                raise TypeError(f"Unexpected keyword argument '{key}'")
+            query = FileCon.__build_argument(key, query)
+
+        # build SQL request
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash, "
+                    "seconds FROM files " + query,
+                    kwargs
+                )
+                db_result = cur.fetchall()
+        files = []
+        for row in db_result:
+            files.append(
+                File(
+                    id=row[0],
+                    size=row[1],
+                    guild_id=row[2],
+                    user_id=row[3],
+                    display_name=row[4],
+                    file_name=row[5],
+                    file_hash=row[6],
+                    seconds=row[7],
+                    tags=()  # TODO fetch tags
+                )
+            )
+        return files
+
+    @staticmethod
+    def __build_argument(keyword: str, query: str = "") -> str:
+        """
+        Creates additional WHERE statements in order for query to be somewhat dynamic
+        """
+        if query:
+            query += f" AND {keyword} = %({keyword})s"
+            return query
+        else:
+            return f"WHERE {keyword} = %({keyword})s"
+
+    def add_tag(self, tag_name: str) -> int:
+        """
+        Creates a new tag in the database, returns the tag id
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO tags (tag_name) VALUES (%(tag_name)s) RETURNING tag_id",
+                    {"tag_name": tag_name}
+                )
+                return cur.fetchone()[0]
+
+    def get_tag(self, identifier: int | str) -> list[tuple[int, str]]:
+        """
+        Gets tag from the database, no parameter for every tag.
+        int -> by id
+        str -> by name
+        """
+        if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
+            query = "SELECT tag_id,tag_name FROM tags WHERE tag_id=%(identifier)s"
+        elif isinstance(identifier, str):
+            query = "SELECT tag_id,tag_name FROM tags WHERE tag_name=%(identifier)s"
+        elif identifier is None:
+            query = "SELECT tag_id,tag_name FROM tags"
+        else:
+            raise Exception("Tag identifier must be int or string")
+
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    query,
+                    {"identifier": identifier}
+                )
+                return cur.fetchall()
+
+    def link_tag(self, file_id: int, tag: int | str):
+        """
+        Links tag to file. If both id and name are set id takes priority.
+        Creates tags if they don't exist yet.
+        """
+        if not self.get_file(file_id=file_id):
+            raise Exception("Requested file does not exist!")
+
+        # create tag in db if it doesn't exist already
+        if not (db_tag := self.get_tag(tag)) and isinstance(tag, str):
+            db_tag = (self.add_tag(tag), tag)
+        # TODO: fix this!
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO files_tags (file_id,tag_id) VALUES (%(file_id)s,%(tag)s)",
+                    {"file_id": file_id, "tag": db_tag[0]}
+                )
+
+    def check_files(self):
+        """
+        Checks in the files folder if all database entries exist.
+        If they do not, they are marked as deleted and removed entirely after one week.
+        If they exist and are marked as deleted, the deleted flag is removed.
+        """
+        # TODO actually implement this
+
+
+class User(Database):
+    """
+    Database class for users
+    """
+    def add_user(self, user_id: int, user_name: str):
+        """
+        Allows adding a new user to the database.
+        Updates on conflict.
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
+                    "ON CONFLICT (user_id) DO UPDATE " +
+                    "SET name = %(name)s;",
+                    {'id': user_id, 'name': user_name}
+                )
+
+    def delete_user(self, user_id: str):
+        pass
+        # TODO delete user and remove all associations
+
+    def get_user(self, user_id: int, server_id: int = None) -> dict | None:
+        """
+        Retrieves specified user from the database.
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT user_id,name,uploader FROM discord_users WHERE user_id=%s;", (user_id,))
+                result = cur.fetchone()
+
+        if result is None:
+            return None
+        if not server_id:
+            return {"id": result[0], "name": result[1], "uploader": result[2]}
+
+        # get server's display name
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT displayname FROM discord_user_displaynames " +
+                    "WHERE user_id=%(user_id)s AND server_id=%(server_id)s;",
+                    {'user_id': user_id, 'server_id': server_id}
+                )
+                display_name = cur.fetchone()
+        # if no name found fall back to username
+        result_dict = {'id': result[0], 'uploader': result[2]}
+        if display_name is None:
+            result_dict['name'] = result[1]
+        result_dict['name'] = display_name
+        return result_dict
+
+    def add_user_display_name(self, user_id: int, server_id: int, name: str):
+        """
+        Adds a user's display name to the database.
+        """
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
+                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
+                    "ON CONFLICT (user_id,server_id) DO UPDATE " +
+                    "SET displayname = %(displayname)s",
+                    {'user_id': user_id, 'server_id': server_id, 'displayname': name}
+                )
+
+    def user_ensure(self, user: discord.Member):
+        """
+        Creates user if they do not exist yet.
+        """
+        if not self.get_user(user_id=user.id):
+            self.add_user(user_id=user.id, user_name=user.name)
+            self.add_user_display_name(user_id=user.id, server_id=user.guild.id, name=user.name)
+
+    def user_set_uploader(self, user: discord.Member, uploader: bool):
+        self.user_ensure(user)
+        with self.connection as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "update discord_users set uploader = %(status)s WHERE user_id = %(id)s;",
+                    {'id': user.id, 'status': uploader}
+                )

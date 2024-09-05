@@ -7,21 +7,24 @@ import time
 import discord
 from discord.ext import commands
 # internal
-from util import config
+from gustelbot.util import config
 
 
 class Timeout(commands.Cog):
-    '''This class is supposed to handle bot timeouts. Currently only using voice_state as basis.'''
-
-    def __init__(self, bot, settings: config.Config):
+    """
+    This class is supposed to handle bot timeouts. Currently only using voice_state as basis.
+    """
+    def __init__(self, bot, _: config.Config):
         self.bot = bot
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,
                                     member: discord.Member,
-                                    before: discord.VoiceState,
+                                    _: discord.VoiceState,
                                     after: discord.VoiceState):
-        '''Handles automatic disconnection after max_time seconds of inactivity. Only handles sending, not recording.'''
+        """
+        Handles automatic disconnection after max_time seconds of inactivity. Only handles sending, not recording.
+        """
         logging.debug("<timeout> - voice state update")
 
         if not member.id == self.bot.user.id:
@@ -31,14 +34,14 @@ class Timeout(commands.Cog):
 
         # disconnect once this variable reaches max_time
         dc_timer = 0
-        max_time = 10
+        max_time = 180
         voice_client = self.get_voice_client(after.channel)
 
         if voice_client is None:
             return
 
         try:
-            while (self.bot.user in after.channel.members):
+            while self.bot.user in after.channel.members:
                 await asyncio.sleep(1)
                 dc_timer += 1
                 logging.debug(f"Disconnect timer for {after.channel}, {max_time - dc_timer}s left.")
@@ -57,8 +60,10 @@ class Timeout(commands.Cog):
         except Exception as e:
             print(e)
 
-    def get_voice_client(self, channel: discord.channel) -> discord.VoiceClient:
-        '''Returns voice client, if bot is connected to the channel'''
+    def get_voice_client(self, channel: discord.channel) -> discord.VoiceClient | None:
+        """
+        Returns voice client if bot is in a channel.
+        """
         for client in self.bot.voice_clients:
             if client.channel == channel:
                 return client
