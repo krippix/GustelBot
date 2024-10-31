@@ -5,7 +5,9 @@ import discord
 from discord.ext import commands
 # internal
 from gustelbot.util import config
-from gustelbot.util import database
+from gustelbot.util.database import Brotato as BrotatoCon
+from gustelbot.util.database import Database
+from gustelbot.util.database import User
 
 
 class Brotato(commands.Cog):
@@ -36,9 +38,9 @@ class Brotato(commands.Cog):
             character: _description_. Defaults to False).
         """
         self.__ensure_server(ctx)
-        db_con = database.Brotato()
+        db_con = Database.new_connection()
 
-        result = db_con.get_brotato_highscore(difficulty, character, ctx.guild.id)
+        result = BrotatoCon.get_brotato_highscore(db_con, difficulty, character, ctx.guild.id)
         result_table = self.__format_table(result[0], result[1])
 
         if result_table is None:
@@ -74,28 +76,30 @@ class Brotato(commands.Cog):
 
         self.__ensure_server(ctx)
         self.__ensure_user(ctx, user)
-        db_con = database.Brotato()
+        db_con = Database.new_connection()
 
-        chars = [str(x["name_de"]).lower() for x in db_con.get_brotato_char()]
+        chars = [str(x["name_de"]).lower() for x in BrotatoCon.get_brotato_char(db_con)]
 
         if str(char).lower() not in chars:
             await ctx.respond(f"'{char}' is an unknown character")
             return
 
-        db_con.add_brotato_run(char, wave, danger, user.id, ctx.guild.id)
+        BrotatoCon.add_brotato_run(db_con, char, wave, danger, user.id, ctx.guild.id)
+        db_con.commit()
         await ctx.respond(f"**Run hinzugefügt:**\nCharakter: `{char}`, Welle: `{wave}`, Gefahr: `{danger}`")
 
     @brotato_add.command(name="char", description="add character")
     @discord.option(name="char", description="Character to add")
     async def add_char(self, ctx: discord.ApplicationContext, char: str):
-        db_con = database.Brotato()
+        db_con = Database.new_connection()
 
-        db_char = db_con.get_brotato_char(char)
+        db_char = Brotato.get_brotato_char(db_con, char)
         if db_char is None:
-            db_con.add_brotato_char(char)
+            Brotato.add_brotato_char(db_con, char)
             await ctx.respond(f"Added new char '{char}'")
-            return
-        await ctx.respond(f"Character '{char}' already exists.")
+            db_con.commit()
+        else:
+            await ctx.respond(f"Character '{char}' already exists.")
 
     # remove subgroup
     brotato_rem = brotato.create_subgroup(name="remove", description="remove")
@@ -107,10 +111,11 @@ class Brotato(commands.Cog):
         Args:
             ctx: command context
         """
-        db_con = database.Database()
+        db_con = Database.new_connection()
         if ctx.guild is None:
             return
-        db_con.add_server(ctx.guild.id, ctx.guild.name)
+        Database.add_server(db_con, ctx.guild.id, ctx.guild.name)
+        db_con.commit()
 
     @staticmethod
     def __ensure_user(ctx: discord.ApplicationContext, user: discord.Member):
@@ -119,9 +124,10 @@ class Brotato(commands.Cog):
             ctx: _description_
             user: _description_
         """
-        db_con = database.User()
-        db_con.add_user(user.id, user.name)
-        db_con.add_user_display_name(user.id, ctx.guild.id, user.display_name)
+        db_con = Database.new_connection()
+        User.add_user(db_con, user.id, user.name)
+        User.add_user_display_name(db_con, user.id, ctx.guild.id, user.display_name)
+        db_con.commit()
 
     @staticmethod
     def __format_table(lst: list[tuple], header: list) -> str:

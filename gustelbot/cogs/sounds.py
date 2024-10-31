@@ -14,22 +14,39 @@ from difflib import SequenceMatcher
 
 import discord
 from discord.ext import commands
+from discord.ext import tasks
+from psycopg2.extensions import connection
 
 from gustelbot.util import config
-from gustelbot.util import database
+from gustelbot.util import dataclasses
 from gustelbot.util import filemgr
 from gustelbot.util import voice
+from gustelbot.util.database import Database, FileCon, User
 
 
 class Sounds(commands.Cog):
     SOUND_FOLDER: pathlib.Path
-    db: database.Database
+    db: Database
 
     def __init__(self, bot: commands.Bot, settings: config.Config):
         self.logger = logging.getLogger(__name__)
         self.bot = bot
         self.settings = settings
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
+        self.check_files.start()
+
+    @tasks.loop(seconds=20)
+    async def check_files(self):
+        """
+        Check if local files are up-to-date with
+        """
+        db_con = Database.new_connection()
+        db_expected_files = {x.file_name for x in FileCon.get_file(db_con, deleted=False)}
+        local_files = {x.name for x in self.SOUND_FOLDER.glob('**/*')}
+
+        missing_files = db_expected_files - local_files
+
+        print(db_expected_files, '\n', local_files)
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
     @discord.option(name="sound_name", description="Name of the sound, leave empty for random choice", required=False)
@@ -37,16 +54,20 @@ class Sounds(commands.Cog):
         """
         Play command, searches for random file if no name provided
         """
-        db_con = database.FileCon()
+        db_con = Database.new_connection()
 
         if not (response := (await voice.is_joinable(ctx)))[0]:
             await ctx.respond(response[1])
             return
         # choose sound to play
         if sound_name == "":
-            sound = Sounds.__choose_sound(ctx.author.id, ctx.guild_id, db_con.get_play_maxlen(ctx.guild.id))
+            sound = Sounds.__choose_sound(
+                db_con, ctx.author.id, ctx.guild_id, Database.get_play_max_len(db_con, ctx.guild.id)
+            )
         else:
-            sound = Sounds.__choose_sound(ctx.author.id, ctx.guild_id, search_str=sound_name)
+            sound = Sounds.__choose_sound(
+                db_con, ctx.author.id, ctx.guild_id, search_str=sound_name
+            )
 
         # if still no sound was found, check for matching tag instead
         # TODO: implement retrieval of file by tag
@@ -91,8 +112,8 @@ class Sounds(commands.Cog):
         """
         Returns Embed that contains all sounds available
         """
-        db_con = database.FileCon()
-        all_files = [x.display_name for x in db_con.get_file()]
+        db_con = Database.new_connection()
+        all_files = [x.display_name for x in FileCon.get_file(db_con, deleted=False)]
         result_dict = {
             "fields": [{"name": "All available files", "value": "\r".join(all_files)}],
         }
@@ -111,9 +132,9 @@ class Sounds(commands.Cog):
         """
         Allows users to upload a new sound to GustelBot
         """
-        db_con = database.User()
+        db_con = Database.new_connection()
 
-        if not (db_con.get_user(ctx.author.id)['uploader'] or self.settings.is_superuser(ctx.author.id)):
+        if not (User.get_user(db_con, ctx.author.id)['uploader'] or self.settings.is_superuser(ctx.author.id)):
             await ctx.respond("You are not allowed to upload sounds to GustelBot.")
             return
 
@@ -140,10 +161,9 @@ class Sounds(commands.Cog):
             tag_tup = tuple([x.strip() for x in tag_tup if not x.isdigit() and x])
         else:
             tag_tup = None
-        db_con = database.FileCon()
 
         # check if provided display name is already in use (and visible)
-        if file := db_con.get_file(display_name=sound_name):
+        if FileCon.get_file(db_con, display_name=sound_name):
             await ctx.respond(f'**Error**: The Filename `{sound_name}` is already in use!')
             return
 
@@ -156,7 +176,7 @@ class Sounds(commands.Cog):
 
         # calculate hash of file and check db if already exists
         file_md5 = filemgr.calculate_md5(tmp_file_path)
-        if existing_file := db_con.get_file(file_hash=file_md5):
+        if existing_file := FileCon.get_file(db_con, file_hash=file_md5):
             existing_file = existing_file[0]
             await ctx.respond(f'Your upload `{sound_name}` already exists as `{existing_file.display_name}`')
             return
@@ -164,7 +184,7 @@ class Sounds(commands.Cog):
         # create new file
         self.__create_sound_file(
             db_con,
-            database.File(
+            dataclasses.File(
                 size=tmp_file_path.stat().st_size,
                 guild_id=ctx.guild.id,
                 user_id=ctx.author.id,
@@ -176,9 +196,10 @@ class Sounds(commands.Cog):
             ),
             tmp_file_path
         )
+        db_con.commit()
         await ctx.respond(f'Sound `{sound_name}` successfully uploaded to GustelBot')
 
-    def __create_sound_file(self, db_con: database.FileCon, file: database.File, source_file: pathlib.Path):
+    def __create_sound_file(self, db_con: connection, file: dataclasses.File, source_file: pathlib.Path):
         """
         Establishes a new Sound file in the database and copies it to the folder.
         """
@@ -188,7 +209,8 @@ class Sounds(commands.Cog):
         except (FileNotFoundError, NotADirectoryError):
             logging.error(f'Failed to move file to proper folder: {traceback.format_exc()}')
         try:
-            db_con.add_file(file)
+            FileCon.add_file(db_con, file)
+            db_con.commit()
         except Exception as e:
             self.logger.error(f'Failed to add file {source_file.name} to database: {traceback.format_exc()}')
             pathlib.Path(self.SOUND_FOLDER, source_file.name).unlink()
@@ -227,17 +249,17 @@ class Sounds(commands.Cog):
 
     @staticmethod
     def __choose_sound(
+            conn: connection,
             user_id: int,
             guild_id: int,
             max_len: typing.Optional[int] = None,
             search_str: str = None,
             tags: list[str] = None
-    ) -> typing.Optional[database.File]:
+    ) -> typing.Optional[dataclasses.File]:
         """
         Searches database for fitting sound and returns path to sound file.
         """
-        db_con = database.FileCon()
-        all_sounds = db_con.get_file()
+        all_sounds = FileCon.get_file(conn, deleted=False)
 
         # if max_len is set filter list for that
         if max_len:

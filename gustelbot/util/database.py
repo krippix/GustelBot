@@ -1,5 +1,4 @@
 # default
-from dataclasses import dataclass
 import logging
 import os
 import time
@@ -7,41 +6,47 @@ import discord
 # pip
 import psycopg2
 from psycopg2 import extensions
+from psycopg2.extensions import connection
 # internal
 from . import config
+from . import dataclasses
 
 
 class Database:
-    """Implements a connection to a postgres db.
+    """
+    Implements a connection to a postgres db.
     Using 'with' on each connection usage ensures that they are commited after finishing.
     """
-
-    connection: extensions.connection
-    cursor: extensions.cursor
-
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        self.settings = config.Config()
-        logging.info("Connecting to database...")
-        self.__connect()
-
     # ---- generic functions, multiple modules
+    @staticmethod
+    def new_connection() -> connection:
+        """Connect to postgres database
+        """
+        login = config.Config().get_database_config()
 
-    def check(self):
-        # executes all sql files in data/schemas
-        self.__ensure_tables()
+        return psycopg2.connect(
+            database=login['db'],
+            user=login['user'],
+            password=login['password'],
+            host=login['host'],
+            port=login['port']
+        )
+
+    @staticmethod
+    def check(conn: connection):
+        Database.__ensure_tables(conn)
 
     # -- get/set/add/delete ----
 
-    def get_server(self, server_id=None) -> dict | list[dict] | None:
+    @staticmethod
+    def get_server(conn: connection, server_id=None) -> dict | list[dict] | None:
         """
         Returns all servers if no server_id is provided.
         """
         if server_id is None:
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT server_id,servername,language,play_maxlen FROM discord_servers")
-                    db_result = cur.fetchall()
+            with conn.cursor() as cur:
+                cur.execute("SELECT server_id,servername,language,play_maxlen FROM discord_servers")
+                db_result = cur.fetchall()
             return [{
                 'server_id': row[0],
                 'servername': row[1],
@@ -49,14 +54,13 @@ class Database:
                 'play_maxlen': row[3]
             } for row in db_result]
 
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT server_id,servername,language,play_maxlen FROM discord_servers " +
-                    "WHERE (server_id=%(server_id)s);",
-                    {'server_id': server_id}
-                )
-                db_result = cur.fetchall()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT server_id,servername,language,play_maxlen FROM discord_servers " +
+                "WHERE (server_id=%(server_id)s);",
+                {'server_id': server_id}
+            )
+            db_result = cur.fetchall()
         if not db_result:
             return None
         return {
@@ -66,102 +70,99 @@ class Database:
             'play_maxlen': db_result[0][3]
         }
 
-    def add_server(self, server_id: int, name="unknown"):
-        """Adds discord server to database
-
-        Args:
-            server_id: discord server id
-            name: server displayname. Defaults to "unknown".
+    @staticmethod
+    def add_server(conn: connection, server_id: int, name="unknown"):
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_servers (server_id,servername) " +
-                    "VALUES (%(server_id)s,%(name)s) " +
-                    "ON CONFLICT (server_id) DO UPDATE " +
-                    "SET servername = %(name)s;",
-                    {'server_id': server_id, 'name': name}
-                )
+        Adds server to the database.
+        """
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO discord_servers (server_id,servername) " +
+                "VALUES (%(server_id)s,%(name)s) " +
+                "ON CONFLICT (server_id) DO UPDATE " +
+                "SET servername = %(name)s;",
+                {'server_id': server_id, 'name': name}
+            )
         return
 
-    def get_admin_groups(self, server_id: int) -> list[str]:
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT group_name FROM discord_server_admin_groups WHERE server_id=%(server_id)s",
-                    {'server_id': server_id}
-                )
+    @staticmethod
+    def get_admin_groups(conn: connection, server_id: int) -> list[str]:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT group_name FROM discord_server_admin_groups WHERE server_id=%(server_id)s",
+                {'server_id': server_id}
+            )
         return [x[0] for x in cur.fetchall()]
 
-    def add_admin_group(self, server_id: int, group_name: str) -> int:
-        existing_groups = self.get_admin_groups(server_id)
+    @staticmethod
+    def add_admin_group(conn: connection, server_id: int, group_name: str) -> int:
+        existing_groups = Database.get_admin_groups(conn, server_id)
 
         # check if group already exists
         if group_name in existing_groups:
             return 409
 
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_server_admin_groups (server_id, group_name)" +
-                    "VALUES (%(server_id)s,%(group_name)s)",
-                    {'server_id': server_id, 'group_name': group_name}
-                )
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO discord_server_admin_groups (server_id, group_name)" +
+                "VALUES (%(server_id)s,%(group_name)s)",
+                {'server_id': server_id, 'group_name': group_name}
+            )
         return 200
 
-    def remove_admin_group(self, server_id: int, group_name: str) -> int:
-        existing_groups = self.get_admin_groups(server_id)
+    @staticmethod
+    def remove_admin_group(conn: connection, server_id: int, group_name: str) -> int:
+        existing_groups = Database.get_admin_groups(conn, server_id)
 
         if group_name not in existing_groups:
             return 404
 
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM discord_server_admin_groups " +
-                    "WHERE server_id=%(server_id)s AND " +
-                    "group_name=%(group_name)s;",
-                    {'server_id': server_id, 'group_name': group_name}
-                )
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM discord_server_admin_groups " +
+                "WHERE server_id=%(server_id)s AND " +
+                "group_name=%(group_name)s;",
+                {'server_id': server_id, 'group_name': group_name}
+            )
         return 200
 
-    def get_play_maxlen(self, server_id: int) -> int:
+    @staticmethod
+    def get_play_max_len(conn: connection, server_id: int) -> int:
         """Returns max length of randomly chosen sound
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT play_maxlen FROM discord_servers WHERE server_id = %(server_id)s",
-                    {'server_id': server_id}
-                )
-                dbresult = cur.fetchall()
-        return dbresult[0][0]
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT play_maxlen FROM discord_servers WHERE server_id = %(server_id)s",
+                {'server_id': server_id}
+            )
+            db_result = cur.fetchall()
+        return db_result[0][0]
 
-    def set_play_maxlen(self, server_id: int, maxlen: int):
+    @staticmethod
+    def set_play_max_len(conn: connection, server_id: int, maxlen: int):
         """Sets maximum amount of sound file if chosen randomly
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE discord_servers " +
-                    "SET play_maxlen = %(play_maxlen)s " +
-                    "WHERE server_id = %(server_id)s;",
-                    {'play_maxlen': maxlen, 'server_id': server_id}
-                )
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE discord_servers " +
+                "SET play_maxlen = %(play_maxlen)s " +
+                "WHERE server_id = %(server_id)s;",
+                {'play_maxlen': maxlen, 'server_id': server_id}
+            )
         return
 
     # -- "private" functions
 
-    def __ensure_tables(self):
+    @staticmethod
+    def __ensure_tables(conn: connection):
         """Executes all sql files provided in data/schemas, starting with base.sql
         """
-        schema_folder = self.settings.folders["data"].joinpath("schemas")
+        schema_folder = config.Config().folders["data"].joinpath("schemas")
 
         # create base schema
         logging.info("Recreating database schema '%s'", "base.sql")
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(open(schema_folder.joinpath("base.sql"), "r").read())
+        with conn.cursor() as cur:
+            cur.execute(open(schema_folder.joinpath("base.sql"), "r").read())
 
         # create all other schemas
         schemas = [x for x in os.listdir(schema_folder) if x != "base.sql" and x.endswith(".sql")]
@@ -169,81 +170,65 @@ class Database:
         for schema in schemas:
             logging.info("Recreating database schema '%s'", schema)
             current_path = schema_folder.joinpath(schema)
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute(open(current_path, "r").read())
-        return
 
-    def __connect(self):
-        """Connect to postgres database
-        """
-        login = self.settings.get_database_config()
-
-        self.connection = psycopg2.connect(
-            database=login['db'],
-            user=login['user'],
-            password=login['password'],
-            host=login['host'],
-            port=login['port']
-        )
+            with conn.cursor() as cur:
+                cur.execute(open(current_path, "r").read())
 
 
-class Brotato(Database):
+class Brotato:
     """
     Database class that handles access concerning the brotato module.
     """
-    def get_brotato_char(self, char="") -> list[dict] | None:
-        """Returns single char if string provided, all if not
-        Args:
-            char: brotato char display name
-        Returns:
-            dict: {id, name_en, name_de}
+    @staticmethod
+    def get_brotato_char(conn: connection, char="") -> list[dict] | None:
+        """
+        Returns single char if string provided, all if not
         """
         result_list = []
 
         # no input given
         if char == "":
-            with self.connection as conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT char_id,name_en,name_de FROM brotato_chars;")
-                    dbresult = cur.fetchall()
-            for row in dbresult:
+            with conn.cursor() as cur:
+                cur.execute("SELECT char_id,name_en,name_de FROM brotato_chars;")
+                db_result = cur.fetchall()
+            for row in db_result:
                 result_list.append({'id': row[0], 'name_en': row[1], 'name_de': row[2]})
             if len(result_list) == 0:
                 return None
             return result_list
 
         # input given
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT char_id,name_en,name_de FROM brotato_chars " +
-                    "WHERE LOWER(name_de) = LOWER(%(name)s) OR " +
-                    "LOWER(name_en) = LOWER(%(name)s);",
-                    {'name': char}
-                )
-                dbresult = cur.fetchone()
-        if dbresult is None:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT char_id,name_en,name_de FROM brotato_chars " +
+                "WHERE LOWER(name_de) = LOWER(%(name)s) OR " +
+                "LOWER(name_en) = LOWER(%(name)s);",
+                {'name': char}
+            )
+            db_result = cur.fetchone()
+        if db_result is None:
             return None
-        return [{'id': dbresult[0], 'name_en': dbresult[1], 'name_de': dbresult[2]}]
+        return [{'id': db_result[0], 'name_en': db_result[1], 'name_de': db_result[2]}]
 
-    def add_brotato_char(self, char: str):
-        """Adds new character to database
-
-        Args:
-            char: name of the character
+    @staticmethod
+    def add_brotato_char(conn: connection, char: str):
         """
-        if self.get_brotato_char(char) is not None:
+        Adds new character to database
+        """
+        if Brotato.get_brotato_char(conn, char) is not None:
             return
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);", {'name': char})
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO brotato_chars (name_de) VALUES (%(name)s);", {'name': char})
         return
 
-    def get_brotato_highscore(self, diff: int, character: str | None, guild_id: int) -> tuple[list[tuple], list] | None:
+    @staticmethod
+    def get_brotato_highscore(
+            conn: connection, diff: int, character: str | None, guild_id: int
+    ) -> tuple[list[tuple], list] | None:
         """Get highscores from database
 
         Args:
+            conn: connection to database
             diff: difficulty
             character: name of the character
             guild_id: discord server id
@@ -253,7 +238,7 @@ class Brotato(Database):
         """
         # handle if char is set/not set
         if character is not None:
-            char_id = self.get_brotato_char(character)
+            char_id = Brotato.get_brotato_char(conn, character)
             if char_id is not None:
                 char_id = char_id[0]['id']
         else:
@@ -263,170 +248,140 @@ class Brotato(Database):
         if diff is None:
             if char_id is None:
                 # diff: no, char, no
-                with self.connection as conn:
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br " +
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
-                            "WHERE br.server_id=%(server_id)s " +
-                            "ORDER BY wave DESC " +
-                            "LIMIT 20;",
-                            {'server_id': guild_id}
-                        )
-                        result = cur.fetchall()
-                        heading = ["Spieler", "Welle", "Gefahr", "Charakter"]
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT du.name,br.wave,br.danger,bc.name_de FROM brotato_runs br " +
+                        "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                        "WHERE br.server_id=%(server_id)s " +
+                        "ORDER BY wave DESC " +
+                        "LIMIT 20;",
+                        {'server_id': guild_id}
+                    )
+                    result = cur.fetchall()
+                    heading = ["Spieler", "Welle", "Gefahr", "Charakter"]
             else:
                 # diff: no, char yes
-                with self.connection as conn:
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            "SELECT du.name,br.wave,br.danger FROM brotato_runs br " +
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
-                            "WHERE br.char_id=%(char_id)s " +
-                            "AND br.server_id=%(server_id)s " +
-                            "ORDER BY wave DESC " +
-                            "LIMIT 20;",
-                            {'char_id': char_id, 'server_id': guild_id},
-                        )
-                        result = cur.fetchall()
-                        heading = ["Spieler", "Welle", "Gefahr"]
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT du.name,br.wave,br.danger FROM brotato_runs br " +
+                        "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                        "WHERE br.char_id=%(char_id)s " +
+                        "AND br.server_id=%(server_id)s " +
+                        "ORDER BY wave DESC " +
+                        "LIMIT 20;",
+                        {'char_id': char_id, 'server_id': guild_id},
+                    )
+                    result = cur.fetchall()
+                    heading = ["Spieler", "Welle", "Gefahr"]
         else:
             if char_id is None:
                 # diff: yes, char, no
-                with self.connection as conn:
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br " +
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
-                            "WHERE br.danger=%(danger)s " +
-                            "AND br.server_id=%(server_id)s " +
-                            "ORDER BY wave DESC " +
-                            "LIMIT 20;",
-                            {'danger': diff, 'server_id': guild_id}
-                        )
-                        result = cur.fetchall()
-                        heading = ["Spieler", "Welle", "Charakter"]
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT du.name,br.wave,bc.name_de FROM brotato_runs br " +
+                        "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                        "WHERE br.danger=%(danger)s " +
+                        "AND br.server_id=%(server_id)s " +
+                        "ORDER BY wave DESC " +
+                        "LIMIT 20;",
+                        {'danger': diff, 'server_id': guild_id}
+                    )
+                    result = cur.fetchall()
+                    heading = ["Spieler", "Welle", "Charakter"]
             else:
-                with self.connection as conn:
-                    # diff: yes, char, yes
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            "SELECT du.name,br.wave FROM brotato_runs br " +
-                            "INNER JOIN discord_users du ON du.user_id = br.user_id " +
-                            "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
-                            "WHERE br.danger=%(diff)s " +
-                            "AND br.char_id=%(char_id)s " +
-                            "AND br.server_id=%(server_id)s " +
-                            "ORDER BY wave DESC " +
-                            "LIMIT 20;",
-                            {"diff": diff, "char_id": char_id, 'server_id': guild_id}
-                        )
-                        result = cur.fetchall()
-                        heading = ["Spieler", "Welle"]
+                # diff: yes, char, yes
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT du.name,br.wave FROM brotato_runs br " +
+                        "INNER JOIN discord_users du ON du.user_id = br.user_id " +
+                        "INNER JOIN brotato_chars bc ON bc.char_id = br.char_id " +
+                        "WHERE br.danger=%(diff)s " +
+                        "AND br.char_id=%(char_id)s " +
+                        "AND br.server_id=%(server_id)s " +
+                        "ORDER BY wave DESC " +
+                        "LIMIT 20;",
+                        {"diff": diff, "char_id": char_id, 'server_id': guild_id}
+                    )
+                    result = cur.fetchall()
+                    heading = ["Spieler", "Welle"]
         if result is None:
             return None
         return result, heading
 
-    def add_brotato_run(self, char: str, wave: int, danger: int, user_id: int, server_id: int):
+    @staticmethod
+    def add_brotato_run(conn: connection, char: str, wave: int, danger: int, user_id: int, server_id: int):
         """Creates new brotato run in the database
 
         Args:
+            conn: Database connection
             char: _description_
             wave: _description_
             danger: _description_
             user_id: _description_
             server_id: _description_
         """
-        char_id = self.get_brotato_char(char)[0]['id']
+        char_id = Brotato.get_brotato_char(conn, char)[0]['id']
 
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO brotato_runs (user_id,server_id,char_id,wave,danger,timestamp) " +
-                    "VALUES (%(user_id)s,%(server_id)s,%(char_id)s,%(wave)s,%(danger)s,%(timestamp)s);",
-                    {
-                        'user_id': user_id,
-                        'server_id': server_id,
-                        'char_id': char_id,
-                        'wave': wave,
-                        'danger': danger,
-                        'timestamp': int(time.time())
-                    }
-                )
-
-
-@dataclass
-class File:
-    """
-    Representation of a file entry in the database.
-    size
-    guild_id
-    user_id
-    display_name
-    file_name
-    file_hash
-    seconds
-    tags
-    id
-    """
-    size: int
-    guild_id: int
-    user_id: int
-    display_name: str
-    file_name: str
-    file_hash: str
-    seconds: int
-    tags: tuple = ()
-    id: int = None
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO brotato_runs (user_id,server_id,char_id,wave,danger,timestamp) " +
+                "VALUES (%(user_id)s,%(server_id)s,%(char_id)s,%(wave)s,%(danger)s,%(timestamp)s);",
+                {
+                    'user_id': user_id,
+                    'server_id': server_id,
+                    'char_id': char_id,
+                    'wave': wave,
+                    'danger': danger,
+                    'timestamp': int(time.time())
+                }
+            )
 
 
-class FileCon(Database):
+class FileCon:
     """
     Database class that handles access to files and tags
     """
-    def add_file(self, file: File) -> int:
+    @staticmethod
+    def add_file(conn: connection, file: dataclasses.File) -> int:
         """
         Adds file information to the database, this function expects the input data to be correct!
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO files (file_size,server_id,uploader_id,display_name," +
-                    "file_name,file_hash,seconds) " +
-                    "VALUES (" +
-                    "%(size)s,%(server_id)s,%(uploader_id)s,%(display_name)s"
-                    ",%(name)s,%(hash)s,%(seconds)s) " +
-                    "RETURNING file_id",
-                    {
-                        "size": file.size,
-                        "server_id": file.guild_id,
-                        "uploader_id": file.user_id,
-                        "display_name": file.display_name,
-                        "name": file.file_name,
-                        "hash": file.file_hash,
-                        "seconds": file.seconds
-                    }
-                )
-                file_id = cur.fetchone()[0]
+        with conn.cursor() as cur:
+            cur.execute(
+                "insert into files (file_size, server_id, uploader_id, display_name, file_name, file_hash, seconds, "
+                "deleted) values (%(size)s, %(server_id)s, %(uploader_id)s, %(display_name)s, %(name)s, %(hash)s, "
+                "%(seconds)s, %(deleted)s) returning file_id",
+                {
+                    "size": file.size,
+                    "server_id": file.guild_id,
+                    "uploader_id": file.user_id,
+                    "display_name": file.display_name,
+                    "name": file.file_name,
+                    "hash": file.file_hash,
+                    "seconds": file.seconds,
+                    "deleted": False,
+                }
+            )
+            file_id = cur.fetchone()[0]
         if file.tags:
             for tag in file.tags:
-                self.link_tag(file_id, tag)
+                FileCon.link_tag(conn, file_id, tag)
         return file_id
 
-    def get_file(self, **kwargs) -> list[File]:
+    @staticmethod
+    def get_file(conn: connection, **kwargs) -> list[dataclasses.File]:
         """
         visible: only return files visible to the user
         Uses kwargs for WHERE LIKE lookup, they are chained with AND operators
         (file_id, size, server_id, uploader_id, display_name, file_name, hash, public)
         """
         # Check if provided kwargs are valid use cases
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'files'")
-                columns = [x[0] for x in cur.fetchall()]
+        with conn.cursor() as cur:
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'files'")
+            columns = [x[0] for x in cur.fetchall()]
 
         query = ""
         for key, value in kwargs.items():
@@ -435,18 +390,17 @@ class FileCon(Database):
             query = FileCon.__build_argument(key, query)
 
         # build SQL request
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash, "
-                    "seconds FROM files " + query,
-                    kwargs
-                )
-                db_result = cur.fetchall()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT file_id,file_size,server_id,uploader_id,display_name,file_name,file_hash, "
+                "seconds FROM files " + query,
+                kwargs
+            )
+            db_result = cur.fetchall()
         files = []
         for row in db_result:
             files.append(
-                File(
+                dataclasses.File(
                     id=row[0],
                     size=row[1],
                     guild_id=row[2],
@@ -471,19 +425,20 @@ class FileCon(Database):
         else:
             return f"WHERE {keyword} = %({keyword})s"
 
-    def add_tag(self, tag_name: str) -> int:
+    @staticmethod
+    def add_tag(conn: connection, tag_name: str) -> int:
         """
         Creates a new tag in the database, returns the tag id
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO tags (tag_name) VALUES (%(tag_name)s) RETURNING tag_id",
-                    {"tag_name": tag_name}
-                )
-                return cur.fetchone()[0]
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO tags (tag_name) VALUES (%(tag_name)s) RETURNING tag_id",
+                {"tag_name": tag_name}
+            )
+            return cur.fetchone()[0]
 
-    def get_tag(self, identifier: int | str) -> list[tuple[int, str]]:
+    @staticmethod
+    def get_tag(conn: connection, identifier: int | str) -> list[tuple[int, str]]:
         """
         Gets tag from the database, no parameter for every tag.
         int -> by id
@@ -498,72 +453,64 @@ class FileCon(Database):
         else:
             raise Exception("Tag identifier must be int or string")
 
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    query,
-                    {"identifier": identifier}
-                )
-                return cur.fetchall()
+        with conn.cursor() as cur:
+            cur.execute(
+                query,
+                {"identifier": identifier}
+            )
+            return cur.fetchall()
 
-    def link_tag(self, file_id: int, tag: int | str):
+    @staticmethod
+    def link_tag(conn: connection, file_id: int, tag: int | str):
         """
         Links tag to file. If both id and name are set id takes priority.
         Creates tags if they don't exist yet.
         """
-        if not self.get_file(file_id=file_id):
+        if not FileCon.get_file(conn, file_id=file_id):
             raise Exception("Requested file does not exist!")
 
         # create tag in db if it doesn't exist already
-        if not (db_tag := self.get_tag(tag)) and isinstance(tag, str):
-            db_tag = (self.add_tag(tag), tag)
-        # TODO: fix this!
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO files_tags (file_id,tag_id) VALUES (%(file_id)s,%(tag)s)",
-                    {"file_id": file_id, "tag": db_tag[0]}
-                )
-
-    def check_files(self):
-        """
-        Checks in the files folder if all database entries exist.
-        If they do not, they are marked as deleted and removed entirely after one week.
-        If they exist and are marked as deleted, the deleted flag is removed.
-        """
-        # TODO actually implement this
+        if not (db_tag := FileCon.get_tag(conn, tag)) and isinstance(tag, str):
+            db_tag = (FileCon.add_tag(conn, tag), tag)
+        # TODO: fix this! fix what??
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO files_tags (file_id,tag_id) VALUES (%(file_id)s,%(tag)s)",
+                {"file_id": file_id, "tag": db_tag[0]}
+            )
 
 
-class User(Database):
+class User:
     """
     Database class for users
     """
-    def add_user(self, user_id: int, user_name: str):
+    @staticmethod
+    def add_user(conn: connection, user_id: int, user_name: str):
         """
         Allows adding a new user to the database.
         Updates on conflict.
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
-                    "ON CONFLICT (user_id) DO UPDATE " +
-                    "SET name = %(name)s;",
-                    {'id': user_id, 'name': user_name}
-                )
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO discord_users (user_id,name) VALUES (%(id)s,%(name)s) " +
+                "ON CONFLICT (user_id) DO UPDATE " +
+                "SET name = %(name)s;",
+                {'id': user_id, 'name': user_name}
+            )
 
-    def delete_user(self, user_id: str):
+    @staticmethod
+    def delete_user(conn: connection, user_id: str):
         pass
         # TODO delete user and remove all associations
 
-    def get_user(self, user_id: int, server_id: int = None) -> dict | None:
+    @staticmethod
+    def get_user(conn: connection, user_id: int, server_id: int = None) -> dict | None:
         """
         Retrieves specified user from the database.
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT user_id,name,uploader FROM discord_users WHERE user_id=%s;", (user_id,))
-                result = cur.fetchone()
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id,name,uploader FROM discord_users WHERE user_id=%s;", (user_id,))
+            result = cur.fetchone()
 
         if result is None:
             return None
@@ -571,14 +518,13 @@ class User(Database):
             return {"id": result[0], "name": result[1], "uploader": result[2]}
 
         # get server's display name
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT displayname FROM discord_user_displaynames " +
-                    "WHERE user_id=%(user_id)s AND server_id=%(server_id)s;",
-                    {'user_id': user_id, 'server_id': server_id}
-                )
-                display_name = cur.fetchone()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT displayname FROM discord_user_displaynames " +
+                "WHERE user_id=%(user_id)s AND server_id=%(server_id)s;",
+                {'user_id': user_id, 'server_id': server_id}
+            )
+            display_name = cur.fetchone()
         # if no name found fall back to username
         result_dict = {'id': result[0], 'uploader': result[2]}
         if display_name is None:
@@ -586,33 +532,34 @@ class User(Database):
         result_dict['name'] = display_name
         return result_dict
 
-    def add_user_display_name(self, user_id: int, server_id: int, name: str):
+    @staticmethod
+    def add_user_display_name(conn: connection, user_id: int, server_id: int, name: str):
         """
         Adds a user's display name to the database.
         """
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
-                    "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
-                    "ON CONFLICT (user_id,server_id) DO UPDATE " +
-                    "SET displayname = %(displayname)s",
-                    {'user_id': user_id, 'server_id': server_id, 'displayname': name}
-                )
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO discord_user_displaynames (user_id,server_id,displayname) " +
+                "VALUES (%(user_id)s,%(server_id)s,%(displayname)s) " +
+                "ON CONFLICT (user_id,server_id) DO UPDATE " +
+                "SET displayname = %(displayname)s",
+                {'user_id': user_id, 'server_id': server_id, 'displayname': name}
+            )
 
-    def user_ensure(self, user: discord.Member):
+    @staticmethod
+    def user_ensure(conn: connection, user: discord.Member):
         """
         Creates user if they do not exist yet.
         """
-        if not self.get_user(user_id=user.id):
-            self.add_user(user_id=user.id, user_name=user.name)
-            self.add_user_display_name(user_id=user.id, server_id=user.guild.id, name=user.name)
+        if not User.get_user(conn, user_id=user.id):
+            User.add_user(conn, user_id=user.id, user_name=user.name)
+            User.add_user_display_name(conn, user_id=user.id, server_id=user.guild.id, name=user.name)
 
-    def user_set_uploader(self, user: discord.Member, uploader: bool):
-        self.user_ensure(user)
-        with self.connection as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "update discord_users set uploader = %(status)s WHERE user_id = %(id)s;",
-                    {'id': user.id, 'status': uploader}
-                )
+    @staticmethod
+    def user_set_uploader(conn: connection, user: discord.Member, uploader: bool):
+        User.user_ensure(conn, user)
+        with conn.cursor() as cur:
+            cur.execute(
+                "update discord_users set uploader = %(status)s WHERE user_id = %(id)s;",
+                {'id': user.id, 'status': uploader}
+            )
