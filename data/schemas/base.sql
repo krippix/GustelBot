@@ -1,62 +1,64 @@
 -- discord_users
-CREATE TABLE IF NOT EXISTS discord_users(
-    user_id BIGINT PRIMARY KEY
+create table if not exists discord_users(
+    user_id bigint primary key
 );
-ALTER TABLE discord_users ADD COLUMN IF NOT EXISTS name TEXT;
-ALTER TABLE discord_users ADD COLUMN IF NOT EXISTS uploader BOOLEAN default FALSE;
+alter table discord_users add column if not exists name text;
+alter table discord_users add column if not exists uploader boolean default false;
 
 -- discord_servers
-CREATE TABLE IF NOT EXISTS discord_servers(
-    server_id BIGINT PRIMARY KEY
+create table if not exists discord_servers(
+    server_id bigint primary key
 );
-ALTER TABLE discord_servers ADD COLUMN IF NOT EXISTS servername TEXT;
-ALTER TABLE discord_servers ADD COLUMN IF NOT EXISTS language TEXT;
-ALTER TABLE discord_servers ADD COLUMN IF NOT EXISTS play_maxlen INTEGER DEFAULT 0;
+alter table discord_servers add column if not exists servername text;
+alter table discord_servers add column if not exists language text;
+alter table discord_servers add column if not exists play_maxlen integer default 0;
 
 -- discord_user_displaynames
-CREATE TABLE IF NOT EXISTS discord_user_displaynames(
-    user_id BIGINT NOT NULL,
-    server_id BIGINT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES discord_users (user_id),
-    FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
-    PRIMARY KEY (user_id,server_id)
+create table if not exists discord_user_displaynames(
+    user_id bigint not null,
+    server_id bigint not null,
+    foreign key (user_id) references discord_users (user_id),
+    foreign key (server_id) references discord_servers (server_id),
+    primary key (user_id,server_id)
 );
-ALTER TABLE discord_user_displaynames ADD COLUMN IF NOT EXISTS displayname TEXT NOT NULL default 'unknown_user';
+alter table discord_user_displaynames add column if not exists displayname text not null default 'unknown_user';
 
 -- discord_server_admin_groups
-CREATE TABLE IF NOT EXISTS discord_server_admin_groups(
-    server_id BIGINT NOT NULL,
-    group_name TEXT NOT NULL,
-    FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
-    PRIMARY KEY (server_id,group_name)
+create table if not exists discord_server_admin_groups(
+    server_id bigint not null,
+    group_name text not null,
+    foreign key (server_id) references discord_servers (server_id),
+    primary key (server_id,group_name)
 );
 
 -- files
-CREATE TABLE IF NOT EXISTS files(
-    file_id BIGSERIAL PRIMARY KEY,
-    file_size BIGINT,
-    server_id BIGINT,
-    uploader_id BIGINT,
-    display_name TEXT NOT NULL,
-    file_name TEXT NOT NULL,
-    file_hash TEXT NOT NULL,
-    public BOOLEAN,
-    FOREIGN KEY (server_id) REFERENCES discord_servers (server_id),
-    FOREIGN KEY (uploader_id) REFERENCES discord_users (user_id)
+create table if not exists files(
+    file_id bigserial primary key,
+    file_size bigint,
+    server_id bigint,
+    uploader_id bigint,
+    display_name text not null,
+    file_name text not null,
+    file_hash text not null,
+    public boolean,
+    foreign key (server_id) references discord_servers (server_id),
+    foreign key (uploader_id) references discord_users (user_id)
 );
-ALTER TABLE files ADD COLUMN IF NOT EXISTS seconds BIGINT;
+alter table files add column if not exists seconds bigint;
+alter table files add column if not exists deleted boolean default false not null;
+alter table files add column if not exists deletion_date timestamp;
 
 -- tags
-CREATE TABLE IF NOT EXISTS tags(
-    tag_id BIGSERIAL PRIMARY KEY,
-    tag_name TEXT NOT NULL UNIQUE
+create table if not exists tags(
+    tag_id bigserial primary key,
+    tag_name text not null unique
 );
 
 -- files_tags
-CREATE TABLE IF NOT EXISTS files_tags(
-    file_id BIGINT,
-    tag_id BIGINT,
-    FOREIGN KEY (file_id) REFERENCES files,
-    FOREIGN KEY (tag_id) REFERENCES tags,
-    PRIMARY KEY (file_id,tag_id)
+create table if not exists files_tags(
+    file_id bigint,
+    tag_id bigint,
+    foreign key (file_id) references files,
+    foreign key (tag_id) references tags,
+    primary key (file_id,tag_id)
 );

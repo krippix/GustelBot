@@ -12,7 +12,8 @@ from discord.ext import commands
 from discord.ext import tasks
 # internal
 from gustelbot.util import config
-from gustelbot.util import database
+from gustelbot.util.database import Database
+from gustelbot.util.database import User
 
 
 # Set loglevel, ignoring config until config file works
@@ -21,8 +22,9 @@ logging.basicConfig(encoding='utf-8', level=10)
 # Check config file for errors and correct them
 settings = config.Config()
 try:
-    db = database.Database()
-    db.check()
+    db_con = Database.new_connection()
+    Database.check(db_con)
+    db_con.commit()
 except Exception:
     logging.critical(traceback.format_exc())
     exit()
@@ -50,13 +52,13 @@ async def on_ready():
 @bot.event
 async def on_guild_join(guild: discord.Guild):
     logging.info(f"Joined {guild.name}")
-    db.add_server(server_id=guild.id, name=guild.name)
+    Database.add_server(db_con, server_id=guild.id, name=guild.name)
 
 
 @bot.event
 async def on_guild_update(_, guild: discord.Guild):
     logging.info(f"Guild {guild.name} was updated")
-    db.add_server(server_id=guild.id, name=guild.name)
+    Database.add_server(db_con, server_id=guild.id, name=guild.name)
 
 
 @tasks.loop(hours=1)
@@ -66,10 +68,11 @@ async def check_guilds():
     """
     discord_guilds = [guild async for guild in bot.fetch_guilds()]
     for guild in discord_guilds:
-        if (srv := db.get_server(server_id=guild.id)) is not None:
+        if (srv := Database.get_server(db_con, server_id=guild.id)) is not None:
             if srv['servername'] == guild.name:
                 continue
-        db.add_server(server_id=guild.id, name=guild.name)
+        Database.add_server(db_con, server_id=guild.id, name=guild.name)
+    db_con.commit()
 
 
 @bot.before_invoke
@@ -78,9 +81,9 @@ async def ensure_user(ctx: commands.Context | discord.ApplicationContext):
     Ensures that the calling user is in the database.
     """
     logging.debug("Attempting to create user %s", ctx.author.name)
-    db_con = database.User()
-    db_con.add_user(ctx.author.id, ctx.author.name)
-    db_con.add_user_display_name(ctx.author.id, ctx.guild_id, ctx.author.display_name)
+    User.add_user(db_con, ctx.author.id, ctx.author.name)
+    User.add_user_display_name(db_con, ctx.author.id, ctx.guild_id, ctx.author.display_name)
+    db_con.commit()
 
 
 def load_extensions():
