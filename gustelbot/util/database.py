@@ -415,6 +415,20 @@ class FileCon:
         return files
 
     @staticmethod
+    def mark_file_deleted(db_con, file_id: int, deleted: bool):
+        """
+        Takes file id and marks affected file as deleted.
+        """
+        with db_con.cursor() as cur:
+            cur.execute(
+                'update files set deleted = %(deleted)s, deletion_date = now() where file_id = %(file_id)s',
+                {
+                    'file_id': file_id,
+                    'deleted': deleted,
+                }
+            )
+
+    @staticmethod
     def __build_argument(keyword: str, query: str = "") -> str:
         """
         Creates additional WHERE statements in order for query to be somewhat dynamic

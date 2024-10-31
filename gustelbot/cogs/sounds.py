@@ -35,18 +35,45 @@ class Sounds(commands.Cog):
         self.SOUND_FOLDER = settings.folders["sounds_custom"]
         self.check_files.start()
 
-    @tasks.loop(seconds=20)
+    @tasks.loop(seconds=120)
     async def check_files(self):
         """
         Check if local files are up-to-date with
         """
         db_con = Database.new_connection()
-        db_expected_files = {x.file_name for x in FileCon.get_file(db_con, deleted=False)}
+
+        db_expected_files = FileCon.get_file(db_con, deleted=False)
+        db_expected_file_set = {x.file_name for x in db_expected_files}
+
+        db_deleted_files = FileCon.get_file(db_con, deleted=True)
+        db_deleted_file_set = {x.file_name for x in db_deleted_files}
+
         local_files = {x.name for x in self.SOUND_FOLDER.glob('**/*')}
 
-        missing_files = db_expected_files - local_files
+        # check missing files
+        missing_files = db_expected_file_set - local_files
+        for missing_file in missing_files:
+            file_id = FileCon.get_file(db_con, file_name=missing_file)
+            FileCon.mark_file_deleted(db_con, file_id[0].id, True)
 
-        print(db_expected_files, '\n', local_files)
+        # surplus files
+        surplus_files = local_files - db_expected_file_set
+        files_to_restore = surplus_files.union(db_deleted_file_set)
+        local_file_paths = list(self.SOUND_FOLDER.glob('**/*'))
+        restored_files = []
+        for local_file in local_file_paths:
+            # check if file is correct
+            if local_file.name in files_to_restore:
+                db_file = FileCon.get_file(db_con, file_name=local_file.name)
+                # if hash is correct, set as not deleted
+                if db_file and db_file[0].file_hash == filemgr.calculate_md5(local_file):
+                    FileCon.mark_file_deleted(db_con, db_file[0].id, False)
+                    restored_files.append(db_file[0].file_name)
+        db_con.commit()
+        if missing_files:
+            self.logger.info(f"Marked the files {missing_files} as deleted.")
+        if restored_files:
+            self.logger.info(f"Marked the files {restored_files} as restored.")
 
     @discord.slash_command(name="play", description="Plays sound in your current channel.")
     @discord.option(name="sound_name", description="Name of the sound, leave empty for random choice", required=False)
