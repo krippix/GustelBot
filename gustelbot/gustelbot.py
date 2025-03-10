@@ -4,7 +4,6 @@ Main entry point for GustelBot
 # default
 import logging
 import traceback
-import datetime
 
 # pip
 import discord

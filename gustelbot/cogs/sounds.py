@@ -87,13 +87,13 @@ class Sounds(commands.Cog):
             await ctx.respond(response[1])
             return
         # choose sound to play
-        if sound_name == "":
+        if sound_name:
             sound = Sounds.__choose_sound(
-                db_con, ctx.author.id, ctx.guild_id, Database.get_play_max_len(db_con, ctx.guild.id)
+                db_con, ctx.author.id, ctx.guild_id, search_str=sound_name
             )
         else:
             sound = Sounds.__choose_sound(
-                db_con, ctx.author.id, ctx.guild_id, search_str=sound_name
+                db_con, ctx.author.id, ctx.guild_id, Database.get_play_max_len(db_con, ctx.guild.id)
             )
 
         # if still no sound was found, check for matching tag instead
@@ -245,6 +245,10 @@ class Sounds(commands.Cog):
 
     @sound_upload.error
     async def on_sound_upload_error(self, ctx: discord.ApplicationContext, _: discord.DiscordException):
+        if ctx.response:
+            print("amogus")
+        else:
+            print("nicht amogus")
         logging.error(traceback.format_exc())
         await ctx.respond('Internal server error.')
 
@@ -308,10 +312,13 @@ class Sounds(commands.Cog):
                  ).ratio()) for sound in all_sounds
             ]
             all_sounds = sorted(all_sounds, key=lambda x: x[1], reverse=True)
-        final_choice = None
+
+        if len(all_sounds) == 0:
+            return None
         if isinstance(all_sounds[0], tuple):
-            final_choice = all_sounds[0][0] if all_sounds[0][1] >= 0.65 else None
-        return final_choice
+            return all_sounds[0][0] if all_sounds[0][1] >= 0.65 else None
+        else:
+            return all_sounds[0]
 
     @staticmethod
     async def play_sound(ctx, sound: pathlib.Path, name: str = None):

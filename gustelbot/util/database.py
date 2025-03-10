@@ -5,7 +5,6 @@ import time
 import discord
 # pip
 import psycopg2
-from psycopg2 import extensions
 from psycopg2.extensions import connection
 # internal
 from . import config

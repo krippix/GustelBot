@@ -102,11 +102,11 @@ class ConfigServer(commands.Cog):
         if not await ctx.bot.is_owner(ctx.author):
             await ConfigServer.__permission_error(ctx, 'global')
             return
-        db_con = database.User()
+        db_con = database.Database().new_connection()
         try:
-            db_con.user_set_uploader(user, uploader)
+            database.User.user_set_uploader(db_con, user, uploader)
         except Exception as e:
-            await ctx.respond(f"Error: Failed to set user")
+            await ctx.respond("Error: Failed to set user")
             logging.error(e)
             return
         if uploader:
